@@ -1,2 +1,41 @@
 # MTGA_Swapper
-Edit or swap any assets to appear in game (Sleeves, Card Art, Battlefield, Emotes, Pets)
+Edit or swap any assets to appear in game (Sleeves, Card Art, Exclusive Lands, Battlefield, Emotes, Pets)
+
+Install Python at [python.org](https://www.python.org/downloads/)
+
+`pip install -r requirements.txt`
+
+run `main.py`
+
+You may need to create a free PySimpleGUI account to access (it will prompt you)
+
+**How to use**
+
+First select your database file (Find the path of your MTGA folder)
+
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d76fb165-cb32-447a-a27b-70719b292c9c)
+
+Then select any folder to save any images you export (from the game)
+
+Then it will show a list of cards. Click them to view its art and change or swap it. (Change style not yet implemented)
+
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/ce2900c7-9eba-4382-bd9c-aeb57efee20b)
+
+To unlock custom art lands, set a normal art land to swap 1 with another a custom art one to swap 2 
+
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/372c590e-1bc5-485b-af9a-12782f69f056)
+
+
+You can also edit other assets like avatars
+
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/53afa37a-ca57-4a84-9b24-3a91c6becc86)
+
+# Let me know if you have any questions or suggestions on my Discord at `bobjr23`
+
+**Final In-Game Examples below**
+
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d72bcdec-2f6b-4804-89aa-4d42634aedcc)
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/8e56bd7e-c6c5-499f-a1c3-37e6702dacab)
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0b2d-4515-bc1e-9b9278ec6f00)
+![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/115e8e66-85c2-4f51-af9d-f9cb46482b8b)
+
