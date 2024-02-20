@@ -1,6 +1,8 @@
 # MTGA_Swapper
 Edit or swap any assets to appear in game (Sleeves, Card Art, Exclusive Lands, Battlefield, Emotes, Pets)
 
+In-depth reddit post here: [https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/](https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/)
+
 Install Python at [python.org](https://www.python.org/downloads/)
 
 `pip install -r requirements.txt`
