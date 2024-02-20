@@ -13,6 +13,8 @@ You may need to create a free PySimpleGUI account to access (it will prompt you)
 
 **Disclaimer:** Use at your own risk. I'm not responsible for anything that happens to your device or your account. 
 
+I'll take this down if it violates MTG Arena TOS
+
 **How to use**
 
 First select your database file (Find the path of your MTGA folder)
