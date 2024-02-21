@@ -27,7 +27,7 @@ Then it will show a list of cards. Click them to view its art and change or swap
 
 ![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/ce2900c7-9eba-4382-bd9c-aeb57efee20b)
 
-To unlock custom art lands, set a normal art land to swap 1 with another a custom art one to swap 2 
+To unlock custom art lands, set a normal art land to swap 1 and a custom art land to swap 2 (Custom lands have 2 as their ArtSize). Then press Swap Arts
 
 ![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/372c590e-1bc5-485b-af9a-12782f69f056)
 
