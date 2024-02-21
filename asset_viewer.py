@@ -3,12 +3,15 @@ from PIL import Image
 from tkinter.filedialog import askopenfilename
 
 
-def get_texture(env, card=True):
+def get_texture(env, card=True, land=False):
     for obj in env.objects:
         data = obj.read()
         if obj.type.name == "Texture2D":
             if card:
                 if data.image.size[0] == 512:
+                    return data
+            elif land:
+                if data.image.size[0] != 1024:
                     return data
             else:
                 return data
