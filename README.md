@@ -9,7 +9,8 @@ Install Python at [python.org](https://www.python.org/downloads/)
 
 run `main.py`
 
-You may need to create a free PySimpleGUI account to access (it will prompt you)
+You may need to create a free PySimpleGUI account to access (it will prompt you) **OR**
+`pip install PySimpleGUI==4.27.4` instead
 
 **Disclaimer:** Use at your own risk. I'm not responsible for anything that happens to your device or your account. 
 
