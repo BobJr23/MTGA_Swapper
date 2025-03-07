@@ -1,6 +1,6 @@
 import sql_editor
 import asset_viewer
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
