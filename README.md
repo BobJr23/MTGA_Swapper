@@ -9,7 +9,7 @@ Install Python ≤ 3.12 at [python.org](https://www.python.org/downloads/)
 
 `pip install -r requirements.txt`
 
-run `main.py`
+run `python main.py`
 
 **Update:**
 You now need to use FreeSimpleGUI since PySimpleGUI has been discontinued.
