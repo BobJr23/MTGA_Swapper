@@ -5,7 +5,7 @@ In-depth reddit post here: [https://www.reddit.com/r/MagicArena/comments/1avproc
 
 Exe file coming soon...
 
-Install Python at [python.org](https://www.python.org/downloads/)
+Install Python ≤ 3.12 at [python.org](https://www.python.org/downloads/)
 
 `pip install -r requirements.txt`
 
