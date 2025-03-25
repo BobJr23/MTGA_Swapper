@@ -40,7 +40,7 @@ You can also edit other assets like avatars
 
 ![image](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/53afa37a-ca57-4a84-9b24-3a91c6becc86)
 
-# Let me know if you have any questions or suggestions on my Discord at `bobjr23`
+# Let me know if you have any questions or suggestions on my Discord at `_bobjr_`
 
 **Final In-Game Examples below**
 
