@@ -1,6 +1,9 @@
 import UnityPy
 from PIL import Image
 from tkinter.filedialog import askopenfilename
+import UnityPy.config
+
+UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
 
 
 def get_texture(env, card=True, land=False):
