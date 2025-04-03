@@ -1,4 +1,6 @@
 # MTGA_Swapper
+**Note: Currently not working due to a game update encrypting asset files. If you have knowledge on a fix, feel free to reach out on my Discord at `_bobjr_`**
+
 Edit or swap any assets to appear in game (Sleeves, Card Art, Exclusive Lands, Battlefield, Emotes, Pets)
 
 In-depth reddit post here: [https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/](https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/)
