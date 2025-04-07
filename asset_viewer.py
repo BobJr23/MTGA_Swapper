@@ -6,18 +6,21 @@ import UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
 
 
-def get_texture(env, card=True, land=False):
-    for obj in env.objects:
-        data = obj.read()
-        if obj.type.name == "Texture2D":
-            if card:
-                if data.image.size[0] == 512:
+def get_texture(env, card=True, land=False, all_textures=False):
+    if not all_textures:
+        for obj in env.objects:
+            data = obj.read()
+            if obj.type.name == "Texture2D":
+                if card:
+                    if data.image.size[0] == 512:
+                        return data
+                elif land:
+                    if data.image.size[0] != 1024:
+                        return data
+                else:
                     return data
-            elif land:
-                if data.image.size[0] != 1024:
-                    return data
-            else:
-                return data
+    else:
+        return [obj.read() for obj in env.objects if obj.type.name == "Texture2D"]
     return None
 
 

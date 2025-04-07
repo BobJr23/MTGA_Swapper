@@ -5,6 +5,7 @@ import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import random
+import io
 
 
 def get_file(title, desc, types):
@@ -54,9 +55,13 @@ layout = [
     ],
     [
         sg.Button(
-            "Select database and image save loation before changing sleeves and avatars",
+            (
+                "Select database and image save loation before changing sleeves and avatars"
+                if filename == None
+                else "Change Sleeves, Avatars, etc."
+            ),
             key="-Sleeve-",
-            disabled=True,
+            disabled=True if filename == None else False,
         )
     ],
     [
@@ -143,28 +148,61 @@ while True:  # Event Loop
                     print(name)
 
                     env = asset_viewer.load(path + "/" + name)
-                    data = asset_viewer.get_texture(env, False)
+                    data_list = asset_viewer.get_texture(
+                        env, card=False, land=False, all_textures=True
+                    )
+                    index = 0
+                    data = data_list[0] if len(data_list) > 0 else None
                     if data != None:
-                        asset_viewer.open_image(data, save_dir + "/" + name + ".png")
+                        img_byte_arr = io.BytesIO()
+                        data.image.save(img_byte_arr, format="PNG")
+
                         window4 = sg.Window(
                             "Showing: " + name + " Art",
                             [
                                 [
                                     sg.Button("Change image", key="-CI-"),
+                                    sg.Button("Previous in bundle", key="-L-"),
+                                    sg.Button("Next in bundle", key="-R-"),
+                                    sg.Button("Save", key="-SAVE-"),
+                                    sg.Button("Close", key="Exit"),
                                 ],
                                 [
                                     sg.Image(
-                                        filename=save_dir + "/" + name + ".png",
+                                        data=img_byte_arr.getvalue(),
                                         key="-IMAGE-",
                                     )
                                 ],
                             ],
                             modal=True,
                         )
+
                         while True:
                             e, _ = window4.read()
                             if e == "Exit" or e == sg.WIN_CLOSED:
                                 break
+                            if e == "-L-":
+                                index -= 1
+                                if index < 0:
+                                    index = len(data_list) - 1
+                                data = data_list[index]
+                                if data != None:
+                                    img_byte_arr = io.BytesIO()
+                                    data.image.save(img_byte_arr, format="PNG")
+                                    window4["-IMAGE-"].update(
+                                        data=img_byte_arr.getvalue()
+                                    )
+                            if e == "-R-":
+                                index += 1
+                                if index >= len(data_list):
+                                    index = 0
+                                data = data_list[index]
+                                if data != None:
+                                    img_byte_arr = io.BytesIO()
+                                    data.image.save(img_byte_arr, format="PNG")
+                                    window4["-IMAGE-"].update(
+                                        data=img_byte_arr.getvalue()
+                                    )
                             if e == "-CI-":
                                 new = get_file(
                                     "Select your new image", "image files", "*.png"
@@ -183,6 +221,15 @@ while True:  # Event Loop
                                         "Invalid image file",
                                         auto_close_duration=1,
                                     )
+                            if e == "-SAVE-":
+                                new_path = (
+                                    save_dir + "/" + name + "-" + str(index) + ".png"
+                                )
+                                asset_viewer.open_image(data, new_path)
+                                sg.popup_auto_close(
+                                    "Image saved successfully!",
+                                    auto_close_duration=1,
+                                )
                     else:
                         sg.popup_error(
                             "Invalid texture file",
