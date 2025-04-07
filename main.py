@@ -24,11 +24,28 @@ def get_dir(title):
     return file
 
 
+with open("config.json", "r") as f:
+    config = f.read()
+    config = sg.json.loads(config)
+    if config["SavePath"] != "":
+        save_dir = config["SavePath"]
+    else:
+        save_dir = None
+    if config["DatabasePath"] != "":
+        filename = config["DatabasePath"]
+        cur, con, filename = sql_editor.main(filename)
+
+        base_cards = cur.execute(
+            "SELECT Order_Title, ExpansionCode, ArtSize, GrpID, ArtID FROM Cards WHERE Order_Title IS NOT NULL"
+        ).fetchall()
+        cards = base_cards
+    else:
+        filename = None
+        base_cards = ["Select a database first"]
+        cards = ["Select a database first"]
+
 swap1, swap2 = None, None
 current_input = ""
-cards = ["Select a database first"]
-base_cards = ["Select a database first"]
-filename = None
 layout = [
     [
         sg.Button("Select database file & image save location", key="-DB-"),
@@ -56,6 +73,7 @@ window = sg.Window(
     "MTGA Swapper", layout, grab_anywhere=True, background_color="darkblue"
 )
 
+
 while True:  # Event Loop
     event, values = window.read()
 
@@ -82,6 +100,11 @@ while True:  # Event Loop
             )
 
         save_dir = get_dir("Select a folder to save images to")
+
+        with open("config.json", "w") as f:
+            config["SavePath"] = save_dir
+            config["DatabasePath"] = filename
+            f.write(sg.json.dumps(config))
 
         window["-LIST-"].update(base_cards)
         window["-Sleeve-"].update("Change Sleeves, Avatars, etc.")
