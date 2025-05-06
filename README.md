@@ -29,12 +29,17 @@ Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:
 1. **Install Python (≤ 3.12):**  
    👉 [Download from python.org](https://www.python.org/downloads/)
 
-2. **Install dependencies:**  
+2. **Clone repository (or download and unzip source code):**
+   ```bash
+   git clone https://github.com/BobJr23/MTGA_Swapper.git
+   ```
+
+4. **Install dependencies:**  
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the app:**  
+5. **Run the app:**  
    ```bash
    python main.py
    ```
