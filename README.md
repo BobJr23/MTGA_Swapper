@@ -51,7 +51,8 @@ Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:
 
 ## ⚠️ Disclaimer
 
-- Use at your own risk.  
+- Use at your own risk.
+- This is for educational purposes only.
 - I'm **not responsible** for any issues with your device or account.  
 - This tool may violate MTG Arena's TOS – this repo will be removed if requested.
 
