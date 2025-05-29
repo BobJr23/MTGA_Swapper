@@ -1,5 +1,5 @@
 # MTGA_Swapper
-**Fixed major issue, working as of 4/3/25**
+**Fixed major issue with versioning, working as of 5/29/25**
 
 Edit or swap any assets to appear in game (Sleeves, Card Art, Exclusive Lands, Battlefield, Emotes, Pets)
 

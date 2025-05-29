@@ -289,7 +289,7 @@ while True:  # Event Loop
         else:
             land = False
             card = True
-        path = os.path.dirname(filename)[0:-3] + r"/AssetBundle"
+        path = os.path.dirname(filename)[0:-3] + r"AssetBundle"
         try:
             prefixed = [f for f in os.listdir(path) if f.startswith(str(art))][0]
 

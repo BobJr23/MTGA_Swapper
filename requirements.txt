@@ -1,2 +1,2 @@
-FreeSimpleGUI==5.1.1
-UnityPy==1.10.7
+FreeSimpleGUI==5.2.0
+UnityPy==1.22.4
