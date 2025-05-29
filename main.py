@@ -40,6 +40,7 @@ with open("config.json", "r") as f:
             "SELECT Order_Title, ExpansionCode, ArtSize, GrpID, ArtID FROM Cards WHERE Order_Title IS NOT NULL"
         ).fetchall()
         cards = base_cards
+        asset_viewer.set_unity_version(filename, "2022.3.42f1")
     else:
         filename = None
         base_cards = ["Select a database first"]
@@ -110,7 +111,7 @@ while True:  # Event Loop
             config["SavePath"] = save_dir
             config["DatabasePath"] = filename
             f.write(sg.json.dumps(config))
-
+        asset_viewer.set_unity_version(filename, "2022.3.42f1")
         window["-LIST-"].update(base_cards)
         window["-Sleeve-"].update("Change Sleeves, Avatars, etc.")
         window["-Sleeve-"].update(disabled=False)
@@ -276,11 +277,10 @@ while True:  # Event Loop
     else:
         # display original unfiltered list
         if current_input != "":
-            print("yes input")
+
             window["-LIST-"].update(base_cards)
             current_input = ""
-        else:
-            print("no input")
+
     if event == "-LIST-" and len(values["-LIST-"]):
         name, mtg_set, art_size, grp, art = (*values["-LIST-"][0],)
         if name in ["forest", "island", "mountain", "plains", "swamp"]:

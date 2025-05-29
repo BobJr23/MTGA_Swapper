@@ -2,8 +2,19 @@ import UnityPy
 from PIL import Image
 from tkinter.filedialog import askopenfilename
 import UnityPy.config
+from pathlib import Path
+import unicodedata
 
-UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
+
+def set_unity_version(path, version):
+
+    try:
+        with open(Path(path).parents[2] / "level0", "rb") as fp:
+            txt = fp.read().decode("latin-1").strip()[40:60].replace("\x00", "")
+            UnityPy.config.FALLBACK_UNITY_VERSION = txt
+
+    except:
+        UnityPy.config.FALLBACK_UNITY_VERSION = version
 
 
 def get_texture(env, card=True, land=False, all_textures=False):
@@ -41,19 +52,11 @@ def save_image(data, new_path, src, env):
 
 
 def load(path):
-    return UnityPy.load(path)
-
-
-# OTHER_PATH =
-# if __name__ == "__main__":
-#     PATH_TO_FILE = askopenfilename()
-#     src = PATH_TO_FILE
-
-#     env = UnityPy.load(src)
-#     data = get_texture(env)
-#     d = open_image(
-#         data, PATH
-#     )
-# save_image(
-#     d, OTHER_PATH, src, env
-# )
+    try:
+        return UnityPy.load(path)
+    except UnityPy.exceptions.UnityVersionFallbackError as e:
+        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
+        print(
+            f"Error: {e}. Setting fallback Unity version to {UnityPy.config.FALLBACK_UNITY_VERSION}."
+        )
+        return UnityPy.load(path)
