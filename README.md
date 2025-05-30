@@ -1,5 +1,7 @@
 # MTGA Swapper 🎴🛠️  
-**✅ Fixed major versioning issue – fully working as of 5/29/25**
+**✅ Fixed major bugs – fully working**
+
+Report any issues in Feedback & Support
 
 Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
