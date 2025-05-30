@@ -12,6 +12,19 @@ def no_alpha(image):
     return image
 
 
+def set_aspect_ratio(image, target_aspect_ratio=(10, 8)):
+
+    width, height = image.size
+
+    # Compute target height based on current width and desired aspect ratio
+    target_height = height
+    target_width = int(target_height * target_aspect_ratio[0] / target_aspect_ratio[1])
+
+    # Resize (stretch) the image to this new size
+    resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    return resized
+
+
 def set_unity_version(path, version):
 
     try:

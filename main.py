@@ -304,11 +304,12 @@ while True:  # Event Loop
 
             if art_size == 1:
                 index = 0
-                data_list = data
+                data_list = list(map(lambda x: asset_viewer.no_alpha(x.image), data))
+
                 data = data_list[0] if len(data_list) > 0 else None
                 if data != None:
                     img_byte_arr = io.BytesIO()
-                    data.image.save(img_byte_arr, format="PNG")
+                    data.save(img_byte_arr, format="PNG")
 
                     window4 = sg.Window(
                         "Showing: " + name + " Art",
@@ -317,6 +318,11 @@ while True:  # Event Loop
                                 sg.Button("Change image", key="-CI-"),
                                 sg.Button("Previous in bundle", key="-L-"),
                                 sg.Button("Next in bundle", key="-R-"),
+                                sg.Button("Set to Swap 1", key="-S1-"),
+                                sg.Button("Set to Swap 2", key="-S2-"),
+                                sg.Button("Set aspect ratio", key="-AR-"),
+                                sg.Input("3", key="-AR-W-", size=(3, 1)),
+                                sg.Input("4", key="-AR-H-", size=(3, 1)),
                                 sg.Button("Save", key="-SAVE-"),
                                 sg.Button("Close", key="Exit"),
                             ],
@@ -332,7 +338,7 @@ while True:  # Event Loop
                     )
 
                     while True:
-                        e, _ = window4.read()
+                        e, values = window4.read()
                         if e == "Exit" or e == sg.WIN_CLOSED:
                             break
                         if e == "-L-":
@@ -342,7 +348,7 @@ while True:  # Event Loop
                             data = data_list[index]
                             if data != None:
                                 img_byte_arr = io.BytesIO()
-                                data.image.save(img_byte_arr, format="PNG")
+                                data.save(img_byte_arr, format="PNG")
                                 window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
                         if e == "-R-":
                             index += 1
@@ -351,7 +357,7 @@ while True:  # Event Loop
                             data = data_list[index]
                             if data != None:
                                 img_byte_arr = io.BytesIO()
-                                data.image.save(img_byte_arr, format="PNG")
+                                data.save(img_byte_arr, format="PNG")
                                 window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
                         if e == "-CI-":
                             new = get_file(
@@ -378,6 +384,23 @@ while True:  # Event Loop
                                 "Image saved successfully!",
                                 auto_close_duration=1,
                             )
+                        if e == "-S1-":
+                            swap1 = grp
+                            print(swap1, swap2)
+                        if e == "-S2-":
+                            swap2 = grp
+                            print(swap1, swap2)
+                        if e == "-AR-":
+                            img_byte_arr = io.BytesIO()
+                            asset_viewer.set_aspect_ratio(
+                                data,
+                                (
+                                    int(values["-AR-W-"]),
+                                    int(values["-AR-H-"]),
+                                ),
+                            ).save(img_byte_arr, format="PNG")
+
+                            window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
                 else:
                     sg.popup_error(
                         "Invalid texture file",
@@ -401,6 +424,17 @@ while True:  # Event Loop
                                 sg.Button("Change style", key="-CS-"),
                                 sg.Button("Set to Swap 1", key="-S1-"),
                                 sg.Button("Set to Swap 2", key="-S2-"),
+                                sg.Button("Set aspect ratio", key="-AR-"),
+                                sg.Input(
+                                    "11",
+                                    key="-AR-W-",
+                                    size=(3, 1),
+                                ),
+                                sg.Input(
+                                    "8",
+                                    key="-AR-H-",
+                                    size=(3, 1),
+                                ),
                             ],
                             [sg.Image(filename=new_path, key="-IMAGE-")],
                         ],
@@ -430,6 +464,15 @@ while True:  # Event Loop
                         if event == "-S2-":
                             swap2 = grp
                             print(swap1, swap2)
+                        if event == "-AR-":
+                            asset_viewer.set_aspect_ratio(
+                                asset_viewer.no_alpha(data.image),
+                                (
+                                    int(values["-AR-W-"]),
+                                    int(values["-AR-H-"]),
+                                ),
+                            ).save(new_path)
+                            window2["-IMAGE-"].update(filename=new_path)
 
                     window2.close()
                 else:
