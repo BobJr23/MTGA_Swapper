@@ -381,7 +381,14 @@ while True:  # Event Loop
                                 auto_close_duration=1,
                             )
                     if e == "-SAVE-":
-                        new_path = save_dir + "/" + name + "-" + str(index) + ".png"
+                        new_path = (
+                            save_dir
+                            + "/"
+                            + name.replace("/", "-")
+                            + "-"
+                            + str(index)
+                            + ".png"
+                        )
                         asset_viewer.open_image(data, new_path)
                         sg.popup_auto_close(
                             "Image saved successfully!",
