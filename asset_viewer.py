@@ -23,7 +23,8 @@ def get_texture(env, card=True, land=False, all_textures=False):
             data = obj.read()
             if obj.type.name == "Texture2D":
                 if card:
-                    if data.image.size[0] == 512:
+                    print(f"Texture found: ", data.image.size)
+                    if data.image.size[0] in (512, 1024):
                         return data
                 elif land:
                     if data.image.size[0] != 1024:

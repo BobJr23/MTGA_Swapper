@@ -71,8 +71,8 @@ layout = [
                 "Search for cards by name. The format of the listed cards is: \nName, Set, ArtType (0=normal, 1=planeswalker, 2 = exclusive art lands), GrpID, ArtID"
             )
         ],
-        [sg.Input(size=(20, 1), enable_events=True, key="-INPUT-")],
-        [sg.Listbox(cards, size=(25, 20), enable_events=True, key="-LIST-")],
+        [sg.Input(size=(40, 1), enable_events=True, key="-INPUT-")],
+        [sg.Listbox(cards, size=(40, 20), enable_events=True, key="-LIST-")],
     ],
 ]
 window = sg.Window(
@@ -294,6 +294,7 @@ while True:  # Event Loop
             prefixed = [f for f in os.listdir(path) if f.startswith(str(art))][0]
 
             env = asset_viewer.load(path + "/" + prefixed)
+
             data = asset_viewer.get_texture(env, card=card, land=land)
 
             if save_dir != "":
