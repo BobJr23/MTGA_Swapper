@@ -409,7 +409,11 @@ while True:  # Event Loop
             else:
                 if save_dir != "":
                     new_path = (
-                        save_dir + "/" + name + str(random.randint(1, 100)) + ".png"
+                        save_dir
+                        + "/"
+                        + name.replace("/", "-")
+                        + str(random.randint(1, 100))
+                        + ".png"
                     )
                     asset_viewer.open_image(
                         data,
