@@ -404,6 +404,7 @@ while True:  # Event Loop
                         ).save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        data = img_byte_arr.getvalue()
             else:
                 sg.popup_error(
                     "Invalid texture file",

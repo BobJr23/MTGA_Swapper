@@ -14,6 +14,8 @@ def no_alpha(image):
 
 
 def set_aspect_ratio(image, target_aspect_ratio=(10, 8)):
+    if type(image) == bytes:
+        image = Image.open(io.BytesIO(image))
 
     width, height = image.size
 
