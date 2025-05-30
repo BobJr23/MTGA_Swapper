@@ -73,7 +73,7 @@ Pick where you want exported game assets (images) to be saved.
 ---
 
 ### 3. Browse and swap card art  
-Cards will appear in a list. Click one to preview the artwork and select a replacement.
+Cards will appear in a list. Click one to preview the artwork and select a replacement. (If art shows up as green marks, press "Next in bundle")
 
 ![Card Art Preview](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/ce2900c7-9eba-4382-bd9c-aeb57efee20b)
 

@@ -291,7 +291,7 @@ while True:  # Event Loop
         else:
             land = False
             card = True
-        path = os.path.dirname(filename)[0:-3] + r"AssetBundle"
+        path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
             prefixed = [f for f in os.listdir(path) if f.startswith(str(art))][0]
@@ -299,10 +299,10 @@ while True:  # Event Loop
             env = asset_viewer.load(path + "/" + prefixed)
 
             data = asset_viewer.get_texture(
-                env, card=card, land=land, all_textures=art_size == 1
+                env, card=card, land=land, planeswalkers=art_size == 1
             )
 
-            if art_size == 1:
+            if True:
                 index = 0
                 data_list = list(map(lambda x: asset_viewer.no_alpha(x.image), data))
 
@@ -320,7 +320,7 @@ while True:  # Event Loop
                                 sg.Button("Next in bundle", key="-R-"),
                                 sg.Button("Set to Swap 1", key="-S1-"),
                                 sg.Button("Set to Swap 2", key="-S2-"),
-                                sg.Button("Set aspect ratio", key="-AR-"),
+                                sg.Button("Set aspect ratio to", key="-AR-"),
                                 sg.Input("3", key="-AR-W-", size=(3, 1)),
                                 sg.Input("4", key="-AR-H-", size=(3, 1)),
                                 sg.Button("Save", key="-SAVE-"),

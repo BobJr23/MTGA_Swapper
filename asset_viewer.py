@@ -36,23 +36,22 @@ def set_unity_version(path, version):
         UnityPy.config.FALLBACK_UNITY_VERSION = version
 
 
-def get_texture(env, card=True, land=False, all_textures=False):
-    if not all_textures:
+def get_texture(env, card=True, land=False, planeswalkers=False):
+    if land:
         for obj in env.objects:
             data = obj.read()
             if obj.type.name == "Texture2D":
-
-                if card:
-                    print(f"Texture found: ", data.image.size)
-                    if data.image.size[0] in (256, 512, 1024):
-                        return data
-                elif land:
-                    if data.image.size[0] != 1024:
-                        return data
-                else:
-                    return data
-    else:
+                if data.image.size[0] != 1024:
+                    return [data]
+    elif planeswalkers:
         return [obj.read() for obj in env.objects if obj.type.name == "Texture2D"]
+    else:
+        return [
+            obj.read()
+            for obj in env.objects
+            if obj.type.name == "Texture2D"
+            and obj.read().image.size[0] in (256, 512, 1024)
+        ]
     return None
 
 
