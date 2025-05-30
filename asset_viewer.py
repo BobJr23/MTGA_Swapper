@@ -3,7 +3,13 @@ from PIL import Image
 from tkinter.filedialog import askopenfilename
 import UnityPy.config
 from pathlib import Path
-import unicodedata
+
+
+def no_alpha(image):
+    """Remove alpha channel from an image."""
+    if image.mode == "RGBA":
+        image = image.convert("RGB")
+    return image
 
 
 def set_unity_version(path, version):
@@ -22,6 +28,7 @@ def get_texture(env, card=True, land=False, all_textures=False):
         for obj in env.objects:
             data = obj.read()
             if obj.type.name == "Texture2D":
+
                 if card:
                     print(f"Texture found: ", data.image.size)
                     if data.image.size[0] in (512, 1024):
@@ -38,7 +45,7 @@ def get_texture(env, card=True, land=False, all_textures=False):
 
 def open_image(data, path):
 
-    data.image.save(path)
+    no_alpha(data.image).save(path)
 
     return data
     # edit texture
@@ -46,7 +53,7 @@ def open_image(data, path):
 
 def save_image(data, new_path, src, env):
 
-    data.image = Image.open(new_path)
+    data.image = no_alpha(Image.open(new_path))
     data.save()
     with open(src, "wb") as f:
         f.write(env.file.save())

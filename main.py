@@ -341,6 +341,7 @@ while True:  # Event Loop
                     if event == "-S2-":
                         swap2 = grp
                         print(swap1, swap2)
+
                 window2.close()
             else:
                 sg.popup_error(
