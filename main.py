@@ -138,6 +138,7 @@ while True:  # Event Loop
                     ],
                 ],
                 modal=True,
+                grab_anywhere=True,
             )
             while True:
                 event3, values3 = window3.read()
@@ -176,6 +177,7 @@ while True:  # Event Loop
                                 ],
                             ],
                             modal=True,
+                            grab_anywhere=True,
                         )
 
                         while True:
@@ -316,6 +318,7 @@ while True:  # Event Loop
                         [sg.Image(filename=new_path, key="-IMAGE-")],
                     ],
                     modal=True,
+                    grab_anywhere=True,
                 )
                 while True:
                     event, values = window2.read()
