@@ -292,63 +292,152 @@ while True:  # Event Loop
             land = False
             card = True
         path = os.path.dirname(filename)[0:-3] + r"AssetBundle"
+
         try:
             prefixed = [f for f in os.listdir(path) if f.startswith(str(art))][0]
 
             env = asset_viewer.load(path + "/" + prefixed)
 
-            data = asset_viewer.get_texture(env, card=card, land=land)
+            data = asset_viewer.get_texture(
+                env, card=card, land=land, all_textures=art_size == 1
+            )
 
-            if save_dir != "":
-                new_path = save_dir + "/" + name + str(random.randint(1, 100)) + ".png"
-                asset_viewer.open_image(
-                    data,
-                    new_path,
-                )
+            if art_size == 1:
+                index = 0
+                data_list = data
+                data = data_list[0] if len(data_list) > 0 else None
+                if data != None:
+                    img_byte_arr = io.BytesIO()
+                    data.image.save(img_byte_arr, format="PNG")
 
-                window2 = sg.Window(
-                    "Showing: " + name + " Art",
-                    [
+                    window4 = sg.Window(
+                        "Showing: " + name + " Art",
                         [
-                            sg.Button("Change image", key="-EA-"),
-                            sg.Button("Change style", key="-CS-"),
-                            sg.Button("Set to Swap 1", key="-S1-"),
-                            sg.Button("Set to Swap 2", key="-S2-"),
+                            [
+                                sg.Button("Change image", key="-CI-"),
+                                sg.Button("Previous in bundle", key="-L-"),
+                                sg.Button("Next in bundle", key="-R-"),
+                                sg.Button("Save", key="-SAVE-"),
+                                sg.Button("Close", key="Exit"),
+                            ],
+                            [
+                                sg.Image(
+                                    data=img_byte_arr.getvalue(),
+                                    key="-IMAGE-",
+                                )
+                            ],
                         ],
-                        [sg.Image(filename=new_path, key="-IMAGE-")],
-                    ],
-                    modal=True,
-                    grab_anywhere=True,
-                )
-                while True:
-                    event, values = window2.read()
-                    if event == "Exit" or event == sg.WIN_CLOSED:
-                        break
-                    if event == "-EA-":
-                        new = get_file("Select your new image", "image files", "*.png")
-                        if new != "":
-                            asset_viewer.save_image(
-                                data, new, path + "/" + prefixed, env
+                        modal=True,
+                        grab_anywhere=True,
+                    )
+
+                    while True:
+                        e, _ = window4.read()
+                        if e == "Exit" or e == sg.WIN_CLOSED:
+                            break
+                        if e == "-L-":
+                            index -= 1
+                            if index < 0:
+                                index = len(data_list) - 1
+                            data = data_list[index]
+                            if data != None:
+                                img_byte_arr = io.BytesIO()
+                                data.image.save(img_byte_arr, format="PNG")
+                                window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        if e == "-R-":
+                            index += 1
+                            if index >= len(data_list):
+                                index = 0
+                            data = data_list[index]
+                            if data != None:
+                                img_byte_arr = io.BytesIO()
+                                data.image.save(img_byte_arr, format="PNG")
+                                window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        if e == "-CI-":
+                            new = get_file(
+                                "Select your new image", "image files", "*.png"
                             )
-                            window2["-IMAGE-"].update(filename=new)
+                            if new != "":
+                                asset_viewer.save_image(
+                                    data, new, path + "/" + name, env
+                                )
+                                window4["-IMAGE-"].update(filename=new)
+                                sg.popup_auto_close(
+                                    "Image changed successfully!",
+                                    auto_close_duration=1,
+                                )
+                            else:
+                                sg.popup_error(
+                                    "Invalid image file",
+                                    auto_close_duration=1,
+                                )
+                        if e == "-SAVE-":
+                            new_path = save_dir + "/" + name + "-" + str(index) + ".png"
+                            asset_viewer.open_image(data, new_path)
                             sg.popup_auto_close(
-                                "Image changed successfully!",
+                                "Image saved successfully!",
                                 auto_close_duration=1,
                             )
-                    if event == "-S1-":
-                        swap1 = grp
-                        print(swap1, swap2)
-                    if event == "-S2-":
-                        swap2 = grp
-                        print(swap1, swap2)
-
-                window2.close()
+                else:
+                    sg.popup_error(
+                        "Invalid texture file",
+                        auto_close_duration=1,
+                    )
             else:
-                sg.popup_error(
-                    "You haven't selected a save location",
-                    auto_close_duration=3,
-                )
-                save_dir = get_dir("Select a folder to save images to")
+                if save_dir != "":
+                    new_path = (
+                        save_dir + "/" + name + str(random.randint(1, 100)) + ".png"
+                    )
+                    asset_viewer.open_image(
+                        data,
+                        new_path,
+                    )
+
+                    window2 = sg.Window(
+                        "Showing: " + name + " Art",
+                        [
+                            [
+                                sg.Button("Change image", key="-EA-"),
+                                sg.Button("Change style", key="-CS-"),
+                                sg.Button("Set to Swap 1", key="-S1-"),
+                                sg.Button("Set to Swap 2", key="-S2-"),
+                            ],
+                            [sg.Image(filename=new_path, key="-IMAGE-")],
+                        ],
+                        modal=True,
+                        grab_anywhere=True,
+                    )
+                    while True:
+                        event, values = window2.read()
+                        if event == "Exit" or event == sg.WIN_CLOSED:
+                            break
+                        if event == "-EA-":
+                            new = get_file(
+                                "Select your new image", "image files", "*.png"
+                            )
+                            if new != "":
+                                asset_viewer.save_image(
+                                    data, new, path + "/" + prefixed, env
+                                )
+                                window2["-IMAGE-"].update(filename=new)
+                                sg.popup_auto_close(
+                                    "Image changed successfully!",
+                                    auto_close_duration=1,
+                                )
+                        if event == "-S1-":
+                            swap1 = grp
+                            print(swap1, swap2)
+                        if event == "-S2-":
+                            swap2 = grp
+                            print(swap1, swap2)
+
+                    window2.close()
+                else:
+                    sg.popup_error(
+                        "You haven't selected a save location",
+                        auto_close_duration=3,
+                    )
+                    save_dir = get_dir("Select a folder to save images to")
         except IndexError:
             sg.popup_error(
                 "Card not working at the moment",

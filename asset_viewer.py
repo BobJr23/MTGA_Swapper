@@ -31,7 +31,7 @@ def get_texture(env, card=True, land=False, all_textures=False):
 
                 if card:
                     print(f"Texture found: ", data.image.size)
-                    if data.image.size[0] in (512, 1024):
+                    if data.image.size[0] in (256, 512, 1024):
                         return data
                 elif land:
                     if data.image.size[0] != 1024:
