@@ -228,7 +228,7 @@ while True:  # Event Loop
                                 new_path = (
                                     save_dir + "/" + name + "-" + str(index) + ".png"
                                 )
-                                asset_viewer.open_image(data, new_path)
+                                asset_viewer.open_image(data.image, new_path)
                                 sg.popup_auto_close(
                                     "Image saved successfully!",
                                     auto_close_duration=1,
@@ -355,6 +355,7 @@ while True:  # Event Loop
                             img_byte_arr = io.BytesIO()
                             data.save(img_byte_arr, format="PNG")
                             window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                            data = img_byte_arr.getvalue()
                     if e == "-R-":
                         index += 1
                         if index >= len(data_list):
@@ -364,6 +365,7 @@ while True:  # Event Loop
                             img_byte_arr = io.BytesIO()
                             data.save(img_byte_arr, format="PNG")
                             window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                            data = img_byte_arr.getvalue()
                     if e == "-CI-":
                         new = get_file("Select your new image", "image files", "*.png")
                         if new != "":

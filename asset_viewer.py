@@ -3,6 +3,7 @@ from PIL import Image
 from tkinter.filedialog import askopenfilename
 import UnityPy.config
 from pathlib import Path
+import io
 
 
 def no_alpha(image):
@@ -56,8 +57,9 @@ def get_texture(env, card=True, land=False, planeswalkers=False):
 
 
 def open_image(data, path):
-
-    no_alpha(data.image).save(path)
+    if type(data) == bytes:
+        data = Image.open(io.BytesIO(data))
+    no_alpha(data).save(path)
 
     return data
     # edit texture
