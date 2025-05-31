@@ -151,7 +151,7 @@ while True:  # Event Loop
 
                     env = asset_viewer.load(path + "/" + name)
                     data_list = asset_viewer.get_texture(
-                        env, card=False, land=False, all_textures=True
+                        env, card=False, land=False, planeswalkers=False
                     )
                     index = 0
                     data = data_list[0] if len(data_list) > 0 else None
