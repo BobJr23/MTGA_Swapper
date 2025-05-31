@@ -4,9 +4,7 @@ import FreeSimpleGUI as sg
 import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
-import random
 import io
-import time
 
 # list fonts available
 
@@ -218,7 +216,6 @@ while True:
             )
             while True:
                 event3, values3 = window3.read()
-                print(event3, values3)
                 if event3 == "Exit" or event3 == sg.WIN_CLOSED:
                     break
                 if event3 == "-LIST3-" and len(values3["-LIST3-"]):
@@ -350,10 +347,8 @@ while True:
             search = current_input
 
             new_values = [x for x in base_cards if search in x.lower()]
-            t = time.time()
 
             window["-LIST-"].update(new_values)
-            print(time.time() - t, "seconds to search")
     else:
         if current_input != "":
             window["-LIST-"].update(base_cards)
