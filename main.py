@@ -213,6 +213,7 @@ while True:
                 ],
                 modal=True,
                 grab_anywhere=True,
+                relative_location=(0, 0),
             )
             while True:
                 event3, values3 = window3.read()
@@ -249,6 +250,7 @@ while True:
                             ],
                             modal=True,
                             grab_anywhere=True,
+                            location=(0, 0),
                         )
 
                         while True:
@@ -378,6 +380,11 @@ while True:
                         [
                             sg.Button("Change image", key="-CI-"),
                             (
+                                sg.Button("Previous in bundle", key="-L-")
+                                if len(data_list) > 1
+                                else sg.Text("")
+                            ),
+                            (
                                 sg.Button("Next in bundle", key="-R-")
                                 if len(data_list) > 1
                                 else sg.Text("")
@@ -386,12 +393,14 @@ while True:
                             sg.Button("Set to Swap 2", key="-S2-"),
                             sg.Button("Set aspect ratio to", key="-AR-"),
                             sg.Input(
-                                "3" if art_size == 1 else "11",
+                                "3" if art_size == "1" else "11",
                                 key="-AR-W-",
                                 size=(3, 1),
                             ),
                             sg.Input(
-                                "4" if art_size == 1 else "8", key="-AR-H-", size=(3, 1)
+                                "4" if art_size == "1" else "8",
+                                key="-AR-H-",
+                                size=(3, 1),
                             ),
                             sg.Button("Save", key="-SAVE-"),
                             sg.Button("Close", key="Exit"),
@@ -405,6 +414,7 @@ while True:
                     ],
                     modal=True,
                     grab_anywhere=True,
+                    relative_location=(0, 0),
                 )
 
                 while True:
@@ -412,10 +422,13 @@ while True:
                     if e == "Exit" or e == sg.WIN_CLOSED:
                         break
 
-                    if e == "-R-":
-                        index += 1
+                    if e in ("-L-", "-R-"):
+                        index += 1 if e == "-R-" else -1
                         if index >= len(data_list):
                             index = 0
+                        if index < 0:
+                            index = len(data_list) - 1
+
                         data = data_list[index]
                         if data != None:
                             img_byte_arr = io.BytesIO()
