@@ -1,9 +1,10 @@
 import UnityPy
 from PIL import Image
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 import UnityPy.config
 from pathlib import Path
 import io
+import os
 
 
 def no_alpha(image):
@@ -84,3 +85,33 @@ def load(path):
             f"Error: {e}. Setting fallback Unity version to {UnityPy.config.FALLBACK_UNITY_VERSION}."
         )
         return UnityPy.load(path)
+
+
+def get_fonts(env: UnityPy.Environment, path):
+    """Get all fonts from the Unity environment."""
+
+    for obj in env.objects:
+        if obj.type.name == "Font":
+            font = obj.read()
+
+            if font.m_FontData:
+                extension = ".ttf"
+                if font.m_FontData[0:4] == b"OTTO":
+                    extension = ".otf"
+
+            with open(os.path.join(path, font.m_Name + extension), "wb") as f:
+                f.write(bytes(font.m_FontData))
+
+
+if __name__ == "__main__":
+    # Run to export fonts
+    font_path = askopenfilename(
+        title="Select file that starts with 'Fonts_' in AssetBundle Folder"
+    )
+    font_save_path = askdirectory(
+        initialdir=os.path.dirname(font_path),
+        title="Select folder to save fonts",
+    )
+    if font_path:
+        env = load(font_path)
+        fonts = get_fonts(env, font_save_path)
