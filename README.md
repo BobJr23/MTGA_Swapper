@@ -100,6 +100,12 @@ Change avatars, sleeves, and more using the same interface.
 ![Avatar Editing](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/53afa37a-ca57-4a84-9b24-3a91c6becc86)
 
 ---
+   If you want to export the font files in ttf format, run
+   ```bash
+   python asset_viewer.py
+   ```
+
+---
 
 ## ✨ Final In-Game Results
 
