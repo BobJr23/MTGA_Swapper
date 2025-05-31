@@ -223,9 +223,7 @@ while True:
                     print(name)
 
                     env = asset_viewer.load(path + "/" + name)
-                    data_list = asset_viewer.get_texture(
-                        env, card=False, land=False, planeswalkers=False
-                    )
+                    data_list = asset_viewer.get_texture(env)
                     index = 0
                     data = data_list[0] if len(data_list) > 0 else None
                     if data != None:
@@ -356,12 +354,7 @@ while True:
 
     if event == "-LIST-" and values["-LIST-"]:
         name, mtg_set, art_size, grp, art = (*values["-LIST-"][0].split(),)
-        if name in ["forest", "island", "mountain", "plains", "swamp"]:
-            land = True
-            card = False
-        else:
-            land = False
-            card = True
+
         path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
@@ -369,9 +362,7 @@ while True:
 
             env = asset_viewer.load(path + "/" + prefixed)
 
-            data = asset_viewer.get_texture(
-                env, card=card, land=land, planeswalkers=art_size == 1
-            )
+            data = asset_viewer.get_texture(env)
 
             index = 0
             data_list = list(map(lambda x: asset_viewer.no_alpha(x.image), data))
@@ -386,8 +377,11 @@ while True:
                     [
                         [
                             sg.Button("Change image", key="-CI-"),
-                            sg.Button("Previous in bundle", key="-L-"),
-                            sg.Button("Next in bundle", key="-R-"),
+                            (
+                                sg.Button("Next in bundle", key="-R-")
+                                if len(data_list) > 1
+                                else sg.Text("")
+                            ),
                             sg.Button("Set to Swap 1", key="-S1-"),
                             sg.Button("Set to Swap 2", key="-S2-"),
                             sg.Button("Set aspect ratio to", key="-AR-"),
@@ -417,16 +411,7 @@ while True:
                     e, values = window4.read()
                     if e == "Exit" or e == sg.WIN_CLOSED:
                         break
-                    if e == "-L-":
-                        index -= 1
-                        if index < 0:
-                            index = len(data_list) - 1
-                        data = data_list[index]
-                        if data != None:
-                            img_byte_arr = io.BytesIO()
-                            data.save(img_byte_arr, format="PNG")
-                            window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
-                            data = img_byte_arr.getvalue()
+
                     if e == "-R-":
                         index += 1
                         if index >= len(data_list):
