@@ -15,7 +15,7 @@ sg.theme("DarkBlue3")  # Modern dark theme
 def format_card(card_tuple):
 
     name, set_code, art_type, grp_id, art_id = card_tuple
-    return f"{name:<25} {set_code:<10} {art_type:<9} {grp_id:<8} {art_id:<8}"
+    return f"{name:<30} {set_code:<10} {art_type:<9} {grp_id:<8} {art_id:<8}"
 
 
 def sort_cards(cards, key):
@@ -131,7 +131,7 @@ layout = [
                 ],
                 [
                     sg.Text(
-                        f"{'Name':<25} {'Set':<7} {'ArtType':<12} {'GrpID':<8} {'ArtID':<8}",
+                        f"{'Name':<30} {'Set':<7} {'ArtType':<12} {'GrpID':<8} {'ArtID':<8}",
                         font=("Courier New", 10, "bold"),
                     )
                 ],
