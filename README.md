@@ -91,11 +91,11 @@ To unlock custom lands:
 - Hit **Swap Arts**
 
 ![Swap Lands 1](https://github.com/user-attachments/assets/503891a7-a090-4992-85e1-e0e339ec8a30)
-![Swap Lands 2](https://github.com/user-attachments/assets/381e2dd2-9e69-4c77-8769-a22b421c91dd)
+![image](https://github.com/user-attachments/assets/a20d06ba-e38e-4be4-929c-32d15ad539ff)
 ![image](https://github.com/user-attachments/assets/c5902f02-f52e-4223-ae19-67a0f92f2db3)
 
-
-![Full Art Land Unlocked](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/c6fd0db6-0e2d-4a38-afb3-33716e2e922f)  
+![image](https://github.com/user-attachments/assets/201a1fc7-259e-4271-a161-5990fce60667)
+![image](https://github.com/user-attachments/assets/f0c72a34-7922-45d3-a69d-3a006bc35487)
 
 ---
 
