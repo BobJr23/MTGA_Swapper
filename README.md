@@ -86,11 +86,16 @@ Cards will appear in a list. Click one to preview the artwork and select a repla
 ### 4. Swap custom land art  
 To unlock custom lands:
 
-- Set a **normal** land as Swap 1  
+- Set a **normal** land (ArtSize = 0) as Swap 1
 - Set a **custom** land (ArtSize = 2) as Swap 2  
 - Hit **Swap Arts**
 
-![Swap Lands](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/372c590e-1bc5-485b-af9a-12782f69f056)
+![Swap Lands 1](https://github.com/user-attachments/assets/503891a7-a090-4992-85e1-e0e339ec8a30)
+![Swap Lands 2](https://github.com/user-attachments/assets/381e2dd2-9e69-4c77-8769-a22b421c91dd)
+![image](https://github.com/user-attachments/assets/c5902f02-f52e-4223-ae19-67a0f92f2db3)
+
+
+![Full Art Land Unlocked](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/c6fd0db6-0e2d-4a38-afb3-33716e2e922f)  
 
 ---
 
@@ -112,10 +117,9 @@ Change avatars, sleeves, and more using the same interface.
 Get creative – make MTGA look how *you* want!
 
 ![Result 1](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d72bcdec-2f6b-4804-89aa-4d42634aedcc)
-![Result 2](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/c6fd0db6-0e2d-4a38-afb3-33716e2e922f)  
-![Result 3](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/8e56bd7e-c6c5-499f-a1c3-37e6702dacab)  
-![Result 4](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0b2d-4515-bc1e-9b9278ec6f00)  
-![Result 5](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/115e8e66-85c2-4f51-af9d-f9cb46482b8b)
+![Result 2](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/8e56bd7e-c6c5-499f-a1c3-37e6702dacab)  
+![Result 3](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0b2d-4515-bc1e-9b9278ec6f00)  
+![Result 4](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/115e8e66-85c2-4f51-af9d-f9cb46482b8b)
 
 ---
 
