@@ -6,10 +6,19 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import io
 
-# list fonts available
+sg.theme("DarkBlue3")
 
 
-sg.theme("DarkBlue3")  # Modern dark theme
+class Card:
+    def __init__(self, name, set_code, art_type, grp_id, art_id):
+        self.name = name
+        self.set_code = set_code
+        self.art_type = art_type
+        self.grp_id = grp_id
+        self.art_id = art_id
+
+    def __str__(self):
+        return self.name
 
 
 def format_card(card_tuple):
@@ -32,6 +41,12 @@ def get_file(title, desc, types):
 def get_dir(title):
     Tk().withdraw()
     return askdirectory(title=title)
+
+
+def pil_to_bytes(img):
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format="PNG")
+    return img_byte_arr.getvalue()
 
 
 # Load config
@@ -248,6 +263,7 @@ while True:
                 modal=True,
                 grab_anywhere=True,
                 relative_location=(0, 0),
+                finalize=True,
             )
             while True:
                 event3, values3 = window3.read()
@@ -285,6 +301,7 @@ while True:
                             modal=True,
                             grab_anywhere=True,
                             location=(0, 0),
+                            finalize=True,
                         )
 
                         while True:
@@ -366,14 +383,69 @@ while True:
             )
 
     if event == "-SA-":
-        if filename and swap1 and swap2:
-            sql_editor.swap_values(swap1, swap2, cur, con)
-            sg.popup_ok("Swapped successfully!", auto_close_duration=2)
-        else:
-            sg.popup_error(
-                "You haven't selected a database and/or swap cards",
-                auto_close_duration=3,
-            )
+
+        # Prepare images for swap1 and swap2 if available
+
+        img1 = (
+            pil_to_bytes(asset_viewer.get_card_textures(swap1, filename)[0][0])
+            if swap1
+            else None
+        )
+
+        img2 = (
+            pil_to_bytes(asset_viewer.get_card_textures(swap2, filename)[0][0])
+            if swap2
+            else None
+        )
+
+        layout_swap = [
+            [sg.Text("You are about to swap the following cards:")],
+            [
+                sg.Column(
+                    [
+                        [sg.Text("Swap 1:")],
+                        [
+                            sg.Text(
+                                str(swap1) if swap1 else "Not selected",
+                                font=("Courier New", 10),
+                            )
+                        ],
+                        [sg.Image(img1, subsample=2) if img1 else sg.Text("No image")],
+                    ]
+                ),
+                sg.Column(
+                    [
+                        [sg.Text("Swap 2:")],
+                        [
+                            sg.Text(
+                                str(swap2) if swap2 else "Not selected",
+                                font=("Courier New", 10),
+                            )
+                        ],
+                        [sg.Image(img2, subsample=2) if img2 else sg.Text("No image")],
+                    ]
+                ),
+            ],
+            [
+                sg.Button(
+                    "Confirm Swap",
+                    key="-CONFIRM-",
+                    disabled=swap1 is None or swap2 is None,
+                ),
+                sg.Button("Cancel", key="-CANCEL-"),
+            ],
+        ]
+        window_swap = sg.Window("Confirm Swap", layout_swap, modal=True, finalize=True)
+        while True:
+            e_swap, _ = window_swap.read()
+            if e_swap in (sg.WIN_CLOSED, "-CANCEL-"):
+                window_swap.close()
+                break
+            if e_swap == "-CONFIRM-" and swap1 and swap2:
+                sql_editor.swap_values(swap1.grp_id, swap2.grp_id, cur, con)
+                sg.popup_ok("Swapped successfully!", auto_close_duration=2)
+                window_swap.close()
+                break
 
     if values["-INPUT-"] != "":
         if values["-INPUT-"] != current_input:
@@ -389,50 +461,49 @@ while True:
             current_input = ""
 
     if event == "-LIST-" and values["-LIST-"]:
-        name, mtg_set, art_size, grp, art = (*values["-LIST-"][0].split(),)
+        current_card = Card(
+            *values["-LIST-"][0].split(),
+        )
 
         path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
-            prefixed = [f for f in os.listdir(path) if f.startswith(str(art))][0]
+            prefixed = [
+                f for f in os.listdir(path) if f.startswith(str(current_card.art_id))
+            ][0]
 
             env = asset_viewer.load(path + "/" + prefixed)
-
-            data = asset_viewer.get_texture(env)
-
             index = 0
-            data_list = list(map(lambda x: asset_viewer.no_alpha(x.image), data))
-
-            data = data_list[0] if len(data_list) > 0 else None
-            if data != None:
-                img_byte_arr = io.BytesIO()
-                data.save(img_byte_arr, format="PNG")
+            textures, data = asset_viewer.get_card_textures(current_card, filename)
+            if textures != None:
+                # img_byte_arr = io.BytesIO()
+                # data.save(img_byte_arr, format="PNG")
 
                 window4 = sg.Window(
-                    "Showing: " + name + " Art",
+                    "Showing: " + current_card.name + " Art",
                     [
                         [
                             sg.Button("Change image", key="-CI-"),
                             (
                                 sg.Button("Previous in bundle", key="-L-")
-                                if len(data_list) > 1
+                                if len(textures) > 1
                                 else sg.Text("")
                             ),
                             (
                                 sg.Button("Next in bundle", key="-R-")
-                                if len(data_list) > 1
+                                if len(textures) > 1
                                 else sg.Text("")
                             ),
                             sg.Button("Set to Swap 1", key="-S1-"),
                             sg.Button("Set to Swap 2", key="-S2-"),
                             sg.Button("Set aspect ratio to", key="-AR-"),
                             sg.Input(
-                                "3" if art_size == "1" else "11",
+                                "3" if current_card.art_type == "1" else "11",
                                 key="-AR-W-",
                                 size=(3, 1),
                             ),
                             sg.Input(
-                                "4" if art_size == "1" else "8",
+                                "4" if current_card.art_type == "1" else "8",
                                 key="-AR-H-",
                                 size=(3, 1),
                             ),
@@ -441,7 +512,9 @@ while True:
                         ],
                         [
                             sg.Image(
-                                data=img_byte_arr.getvalue(),
+                                data=asset_viewer.get_image_from_texture(
+                                    textures[index]
+                                ),
                                 key="-IMAGE-",
                             )
                         ],
@@ -449,6 +522,7 @@ while True:
                     modal=True,
                     grab_anywhere=True,
                     relative_location=(0, 0),
+                    finalize=True,
                 )
 
                 while True:
@@ -458,21 +532,23 @@ while True:
 
                     if e in ("-L-", "-R-"):
                         index += 1 if e == "-R-" else -1
-                        if index >= len(data_list):
+                        if index >= len(textures):
                             index = 0
                         if index < 0:
-                            index = len(data_list) - 1
+                            index = len(textures) - 1
 
-                        data = data_list[index]
-                        if data != None:
-                            img_byte_arr = io.BytesIO()
-                            data.save(img_byte_arr, format="PNG")
-                            window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
-                            data = img_byte_arr.getvalue()
+                        window4["-IMAGE-"].update(
+                            data=asset_viewer.get_image_from_texture(textures[index])
+                        )
                     if e == "-CI-":
                         new = get_file("Select your new image", "image files", "*.png")
                         if new != "":
-                            asset_viewer.save_image(data, new, path + "/" + name, env)
+                            asset_viewer.save_image(
+                                data[index],
+                                new,
+                                path + "/" + prefixed,
+                                env,
+                            )
                             window4["-IMAGE-"].update(filename=new)
                             sg.popup_auto_close(
                                 "Image changed successfully!",
@@ -487,7 +563,7 @@ while True:
                         new_path = (
                             save_dir
                             + "/"
-                            + name.replace("/", "-")
+                            + current_card.name.replace("/", "-")
                             + "-"
                             + str(index)
                             + ".png"
@@ -498,15 +574,15 @@ while True:
                             auto_close_duration=1,
                         )
                     if e == "-S1-":
-                        swap1 = grp
-                        print(swap1, swap2)
+                        swap1 = current_card
+
                     if e == "-S2-":
-                        swap2 = grp
-                        print(swap1, swap2)
+                        swap2 = current_card
+
                     if e == "-AR-":
                         img_byte_arr = io.BytesIO()
                         asset_viewer.set_aspect_ratio(
-                            data,
+                            textures[index],
                             (
                                 int(values["-AR-W-"]),
                                 int(values["-AR-H-"]),
@@ -514,7 +590,7 @@ while True:
                         ).save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
-                        data = img_byte_arr.getvalue()
+
             else:
                 sg.popup_error(
                     "Invalid texture file",

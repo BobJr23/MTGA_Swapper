@@ -14,7 +14,7 @@ def no_alpha(image):
     return image
 
 
-def set_aspect_ratio(image, target_aspect_ratio=(10, 8)):
+def set_aspect_ratio(image, target_aspect_ratio=(10, 8), ratio=True):
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
 
@@ -22,7 +22,12 @@ def set_aspect_ratio(image, target_aspect_ratio=(10, 8)):
 
     # Compute target height based on current width and desired aspect ratio
     target_height = height
-    target_width = int(target_height * target_aspect_ratio[0] / target_aspect_ratio[1])
+    if ratio:
+        target_width = int(
+            target_height * target_aspect_ratio[0] / target_aspect_ratio[1]
+        )
+    else:
+        target_width = width
 
     # Resize (stretch) the image to this new size
     resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
@@ -44,9 +49,37 @@ def get_texture(env):
 
     return sorted(
         [obj.read() for obj in env.objects if obj.type.name == "Texture2D"],
-        key=lambda x: x.image.size[0],
+        key=lambda x: x.image.size[0] + x.image.size[1],
         reverse=True,
     )
+
+
+def get_card_textures(card, filename):
+    if card and filename:
+        try:
+            path = os.path.dirname(filename)[0:-3] + "AssetBundle"
+            prefixed = [f for f in os.listdir(path) if f.startswith(str(card.art_id))][
+                0
+            ]
+            env = load(path + "/" + prefixed)
+            data = get_texture(env)
+            if data and len(data) > 0:
+                return list(map(lambda x: no_alpha(x.image), data)), data
+
+            # asset_viewer.no_alpha(data[0].image).save(img_byte_arr, format="PNG")
+            # return img_byte_arr.getvalue()
+
+        except Exception:
+            return None
+    return None
+
+
+def get_image_from_texture(texture):
+    if texture:
+        img_byte_arr = io.BytesIO()
+        texture.save(img_byte_arr, format="PNG")
+        return img_byte_arr.getvalue()
+    return None
 
 
 def open_image(data, path):
