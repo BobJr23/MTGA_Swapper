@@ -47,7 +47,7 @@ if (
     with open("config.json", "r") as f:
         config = sg.json.loads(f.read())
         save_dir = config["SavePath"] if config["SavePath"] else None
-        if config["DatabasePath"] != "":
+        if config["DatabasePath"] != "" and os.path.exists(config["DatabasePath"]):
             filename = config["DatabasePath"]
             cur, con, filename = sql_editor.main(filename)
             base_cards = list(
@@ -81,6 +81,10 @@ if (
             filename = None
             base_cards = ["Select a database first"]
             cards = ["Select a database first"]
+            sg.popup_error(
+                "Invalid or missing database file. Please select a valid .mtga file.",
+                auto_close_duration=3,
+            )
 else:
     config = {"SavePath": None, "DatabasePath": None}
     save_dir = None
