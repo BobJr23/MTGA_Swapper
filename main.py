@@ -35,43 +35,58 @@ def get_dir(title):
 
 
 # Load config
-with open("config.json", "r") as f:
-    config = sg.json.loads(f.read())
-    save_dir = config["SavePath"] if config["SavePath"] else None
-    if config["DatabasePath"] != "":
-        filename = config["DatabasePath"]
-        cur, con, filename = sql_editor.main(filename)
-        base_cards = list(
-            map(
-                format_card,
-                sorted(
-                    cur.execute(
-                        """
-    SELECT 
-      CASE 
-        WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
-        WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN CONCAT(c2.Order_Title, '-flip-side')
-      END AS Order_Title,
-      c1.ExpansionCode,
-      c1.ArtSize,
-      c1.GrpID,
-      c1.ArtID
-    FROM Cards c1
-    LEFT JOIN Cards c2
-      ON c1.LinkedFaceGrpIds = c2.GrpID
-      AND c2.Order_Title IS NOT NULL
-    WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
-"""
-                    ).fetchall()
-                ),
+
+if (
+    sg.popup_yes_no(
+        "Do you want to load from config file?",
+        title="Reset Config",
+    )
+    == "Yes"
+):
+
+    with open("config.json", "r") as f:
+        config = sg.json.loads(f.read())
+        save_dir = config["SavePath"] if config["SavePath"] else None
+        if config["DatabasePath"] != "":
+            filename = config["DatabasePath"]
+            cur, con, filename = sql_editor.main(filename)
+            base_cards = list(
+                map(
+                    format_card,
+                    sorted(
+                        cur.execute(
+                            """
+        SELECT 
+        CASE 
+            WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
+            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN CONCAT(c2.Order_Title, '-flip-side')
+        END AS Order_Title,
+        c1.ExpansionCode,
+        c1.ArtSize,
+        c1.GrpID,
+        c1.ArtID
+        FROM Cards c1
+        LEFT JOIN Cards c2
+        ON c1.LinkedFaceGrpIds = c2.GrpID
+        AND c2.Order_Title IS NOT NULL
+        WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
+    """
+                        ).fetchall()
+                    ),
+                )
             )
-        )
-        cards = base_cards
-        asset_viewer.set_unity_version(filename, "2022.3.42f1")
-    else:
-        filename = None
-        base_cards = ["Select a database first"]
-        cards = ["Select a database first"]
+            cards = base_cards
+            asset_viewer.set_unity_version(filename, "2022.3.42f1")
+        else:
+            filename = None
+            base_cards = ["Select a database first"]
+            cards = ["Select a database first"]
+else:
+    config = {"SavePath": None, "DatabasePath": None}
+    save_dir = None
+    filename = None
+    base_cards = ["Select a database first"]
+    cards = ["Select a database first"]
 
 swap1, swap2 = None, None
 current_input = ""
