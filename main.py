@@ -474,7 +474,11 @@ while True:
 
             env = asset_viewer.load(path + "/" + prefixed)
             index = 0
-            textures, data = asset_viewer.get_card_textures(current_card, filename)
+            textures, data_list = asset_viewer.get_card_textures(current_card, filename)
+            data = asset_viewer.get_image_from_texture(textures[index])
+            # Get resolution of the image
+            w, h = data_list[index].image.size
+            print(w, h)
             if textures != None:
                 # img_byte_arr = io.BytesIO()
                 # data.save(img_byte_arr, format="PNG")
@@ -544,7 +548,7 @@ while True:
                         new = get_file("Select your new image", "image files", "*.png")
                         if new != "":
                             asset_viewer.save_image(
-                                data[index],
+                                data_list[index],
                                 new,
                                 path + "/" + prefixed,
                                 env,
@@ -560,14 +564,7 @@ while True:
                                 auto_close_duration=1,
                             )
                     if e == "-SAVE-":
-                        new_path = (
-                            save_dir
-                            + "/"
-                            + current_card.name.replace("/", "-")
-                            + "-"
-                            + str(index)
-                            + ".png"
-                        )
+                        new_path = f"{save_dir}/{current_card.name.replace('/', '-')}-{str(index)}-{w}x{h}.png"
                         asset_viewer.open_image(data, new_path)
                         sg.popup_auto_close(
                             "Image saved successfully!",
@@ -581,13 +578,14 @@ while True:
 
                     if e == "-AR-":
                         img_byte_arr = io.BytesIO()
-                        asset_viewer.set_aspect_ratio(
+                        resized, w, h = asset_viewer.set_aspect_ratio(
                             textures[index],
                             (
                                 float(values["-AR-W-"]),
                                 float(values["-AR-H-"]),
                             ),
-                        ).save(img_byte_arr, format="PNG")
+                        )
+                        resized.save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
                         data = img_byte_arr.getvalue()

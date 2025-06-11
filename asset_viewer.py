@@ -31,7 +31,7 @@ def set_aspect_ratio(image, target_aspect_ratio=(10, 8), ratio=True):
 
     # Resize (stretch) the image to this new size
     resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    return resized
+    return resized, target_width, target_height
 
 
 def set_unity_version(path, version):
