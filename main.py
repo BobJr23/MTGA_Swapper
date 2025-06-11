@@ -584,8 +584,8 @@ while True:
                         asset_viewer.set_aspect_ratio(
                             textures[index],
                             (
-                                int(values["-AR-W-"]),
-                                int(values["-AR-H-"]),
+                                float(values["-AR-W-"]),
+                                float(values["-AR-H-"]),
                             ),
                         ).save(img_byte_arr, format="PNG")
 
