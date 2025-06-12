@@ -34,22 +34,41 @@ Report any issues in Feedback & Support
 
 ## 🚀 Quick Start
 
-1. **Install Python (≤ 3.12):**  
-   👉 [Download from python.org](https://www.python.org/downloads/)
+1. **Install Python (Recommended: 3.11; Compatible: ≤ 3.12)**  
+   👉 [Download Python](https://www.python.org/downloads/)
 
-2. **Clone repository (or download and unzip source code):**
+2. **(Recommended) Install [`uv`](https://github.com/astral-sh/uv) – a fast Python package and environment manager:**
+
+   - **Windows:**
+     ```powershell
+     powershell -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+     ```
+
+   - **Mac/Linux:**
+     ```bash
+     curl -LsSf https://astral.sh/uv/install.sh | sh
+     ```
+
+3. **Clone this repository (or download and unzip the source):**
    ```bash
    git clone https://github.com/BobJr23/MTGA_Swapper.git
+   cd MTGA_Swapper
    ```
 
-4. **Install dependencies:**  
+4. **(Recommended) Create a Python 3.11 virtual environment with `uv`:**
    ```bash
-   pip install -r requirements.txt
+   uv venv --python 3.11
+   .venv\Scripts\activate
    ```
 
-5. **Run the app:**  
+5. **Install required dependencies:**
    ```bash
-   python main.py
+   uv pip install -r requirements.txt
+   ```
+
+6. **Run the application:**
+   ```bash
+   uv run main.py
    ```
 
 > 🆕 **Now uses [FreeSimpleGUI](https://pypi.org/project/freesimplegui/)** instead of PySimpleGUI (discontinued).  
@@ -124,7 +143,7 @@ Get creative – make MTGA look how *you* want!
 
 ![Result 1](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d72bcdec-2f6b-4804-89aa-4d42634aedcc)
 ![Result 2](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/8e56bd7e-c6c5-499f-a1c3-37e6702dacab)  
-![Result 3](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0b2d-4515-bc1e-9b9278ec6f00)  
+![Result 3](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0d2d-4515-bc1e-9b9278ec6f00)  
 ![Result 4](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/115e8e66-85c2-4f51-af9d-f9cb46482b8b)
 
 ---
