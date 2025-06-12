@@ -5,6 +5,7 @@ import UnityPy.config
 from pathlib import Path
 import io
 import os
+import numpy as np
 
 
 def no_alpha(image):
@@ -69,7 +70,7 @@ def get_texture(env):
 
     return sorted(
         [obj.read() for obj in env.objects if obj.type.name == "Texture2D"],
-        key=lambda x: x.image.size[0] + x.image.size[1],
+        key=lambda x: (x.image.size[0] + x.image.size[1], len(set(x.image.getdata()))),
         reverse=True,
     )
 
