@@ -5,6 +5,7 @@ import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import io
+from upscaler import upscale_image
 
 sg.theme("DarkBlue3")
 
@@ -74,7 +75,7 @@ if (
         SELECT 
         CASE 
             WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
-            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN CONCAT(c2.Order_Title, '-flip-side')
+            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN c2.Order_Title || '-flip-side'
         END AS Order_Title,
         c1.ExpansionCode,
         c1.ArtSize,
@@ -512,7 +513,8 @@ while True:
                                 size=(3, 1),
                             ),
                             sg.Button("Save", key="-SAVE-"),
-                            sg.Button("Close", key="Exit"),
+                            sg.Button("Upscale", key="-UPSCALE-"),
+                            sg.Button("Close", key="-EXIT-"),
                         ],
                         [
                             sg.Image(
@@ -531,7 +533,7 @@ while True:
 
                 while True:
                     e, values = window4.read()
-                    if e == "Exit" or e == sg.WIN_CLOSED:
+                    if e == "-EXIT-" or e == sg.WIN_CLOSED:
                         break
 
                     if e in ("-L-", "-R-"):
@@ -570,6 +572,15 @@ while True:
                             "Image saved successfully!",
                             auto_close_duration=1,
                         )
+                    if e == "-UPSCALE-":
+                        upped = upscale_image(
+                            io.BytesIO(data),
+                        )
+                        img_byte_arr = io.BytesIO()
+                        upped.save(img_byte_arr, format="PNG")
+                        window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        data = img_byte_arr.getvalue()
+
                     if e == "-S1-":
                         swap1 = current_card
 
@@ -579,7 +590,7 @@ while True:
                     if e == "-AR-":
                         img_byte_arr = io.BytesIO()
                         resized, w, h = asset_viewer.set_aspect_ratio(
-                            textures[index],
+                            data,
                             (
                                 float(values["-AR-W-"]),
                                 float(values["-AR-H-"]),
