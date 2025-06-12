@@ -83,9 +83,6 @@ If not,
    uv run main.py
    ```
 
-> 🆕 **Now uses [FreeSimpleGUI](https://pypi.org/project/freesimplegui/)** instead of PySimpleGUI (discontinued).  
-> Requirements updated – make sure to re-install.
-
 ---
 
 ## ⚠️ Disclaimer
