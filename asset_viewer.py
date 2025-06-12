@@ -5,7 +5,6 @@ import UnityPy.config
 from pathlib import Path
 import io
 import os
-import numpy as np
 
 
 def no_alpha(image):

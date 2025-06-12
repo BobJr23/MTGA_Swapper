@@ -584,8 +584,10 @@ while True:
                         shrunk.save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
-                        upped.save(img_byte_arr, format="PNG")
-                        data = img_byte_arr.getvalue()
+                        new_arr = io.BytesIO()
+                        upped.save(new_arr, format="PNG")
+                        data = new_arr.getvalue()
+                        w, h = upped.size
 
                     if e == "-S1-":
                         swap1 = current_card
