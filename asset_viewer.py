@@ -14,6 +14,26 @@ def no_alpha(image):
     return image
 
 
+def shrink_to_monitor(image, target_width=1920, target_height=1080):
+    """Resize an image to fit within the target dimensions while maintaining aspect ratio."""
+    if type(image) == bytes:
+        image = Image.open(io.BytesIO(image))
+
+    width, height = image.size
+
+    # Calculate the scaling factor
+    scale_factor = min(target_width / width, target_height / height)
+
+    # Calculate new dimensions
+    new_width = int(width * scale_factor)
+    new_height = int(height * scale_factor)
+
+    # Resize the image
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+    return resized_image
+
+
 def set_aspect_ratio(image, target_aspect_ratio=(10, 8), ratio=True):
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))

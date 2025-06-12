@@ -546,6 +546,9 @@ while True:
                         window4["-IMAGE-"].update(
                             data=asset_viewer.get_image_from_texture(textures[index])
                         )
+
+                        data = asset_viewer.get_image_from_texture(textures[index])
+
                     if e == "-CI-":
                         new = get_file("Select your new image", "image files", "*.png")
                         if new != "":
@@ -577,8 +580,11 @@ while True:
                             io.BytesIO(data),
                         )
                         img_byte_arr = io.BytesIO()
-                        upped.save(img_byte_arr, format="PNG")
+                        shrunk = asset_viewer.shrink_to_monitor(upped)
+                        shrunk.save(img_byte_arr, format="PNG")
+
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        upped.save(img_byte_arr, format="PNG")
                         data = img_byte_arr.getvalue()
 
                     if e == "-S1-":
