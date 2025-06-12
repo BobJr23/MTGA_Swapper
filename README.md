@@ -1,10 +1,16 @@
 # MTGA Swapper 🎴🛠️  
+
+
+![Python Version](https://img.shields.io/pypi/pyversions/realesrgan-ncnn-py)
+
+Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:  
+🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
+
 **✅ Fixed major bugs – fully working**
 
 Report any issues in Feedback & Support
 
-Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:  
-🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
+
 
 > 📢 Full explanation & community post on Reddit:  
 > [MTG Arena Asset Editor/Extractor](https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/)
