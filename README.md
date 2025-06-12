@@ -34,6 +34,18 @@ Report any issues in Feedback & Support
 
 ## 🚀 Quick Start
 
+
+Check if Git is installed with 
+
+```bash
+git --version
+```
+
+If not,
+[Install Git here](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+
+
 1. **Install Python (Recommended: 3.11; Compatible: ≤ 3.12)**  
    👉 [Download Python](https://www.python.org/downloads/)
 
