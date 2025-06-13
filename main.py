@@ -37,12 +37,12 @@ def sort_cards(cards, key):
 def get_file(title, desc, types):
     Tk().withdraw()
     file = askopenfilename(filetypes=[(desc, types)], title=title)
-    return file
+    return Path(file).as_posix() if file else None
 
 
 def get_dir(title):
     Tk().withdraw()
-    return askdirectory(title=title)
+    return Path(askdirectory(title=title)).as_posix()
 
 
 def pil_to_bytes(img):

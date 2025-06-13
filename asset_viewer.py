@@ -77,7 +77,11 @@ def get_texture(env):
 def get_card_textures(card, filename):
     if card and filename:
         try:
-            path = os.path.dirname(filename)[0:-3] + "AssetBundle"
+
+            db_parent_dir = Path(filename).parent
+            game_root_dir = db_parent_dir.parent
+
+            path = str(game_root_dir / "AssetBundle")
             prefixed = [f for f in os.listdir(path) if f.startswith(str(card.art_id))][
                 0
             ]
@@ -89,7 +93,8 @@ def get_card_textures(card, filename):
             # asset_viewer.no_alpha(data[0].image).save(img_byte_arr, format="PNG")
             # return img_byte_arr.getvalue()
 
-        except Exception:
+        except Exception as e:
+            print(f"Error: {e}")
             return None
     return None
 
