@@ -489,7 +489,9 @@ while True:
 
         try:
             prefixed = [
-                f for f in os.listdir(path) if f.startswith(str(current_card.art_id))
+                f
+                for f in os.listdir(path)
+                if f.startswith(str(current_card.art_id)) and f.endswith(".mtga")
             ][0]
 
             env = asset_viewer.load(os.path.join(path, prefixed))

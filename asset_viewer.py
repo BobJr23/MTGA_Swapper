@@ -82,9 +82,11 @@ def get_card_textures(card, filename):
             game_root_dir = db_parent_dir.parent
 
             path = str(game_root_dir / "AssetBundle")
-            prefixed = [f for f in os.listdir(path) if f.startswith(str(card.art_id))][
-                0
-            ]
+            prefixed = [
+                f
+                for f in os.listdir(path)
+                if f.startswith(str(card.art_id)) and f.endswith(".mtga")
+            ][0]
             env = load(os.path.join(path, prefixed))
             data = get_texture(env)
             if data and len(data) > 0:
