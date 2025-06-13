@@ -64,12 +64,18 @@ If not,
 3. **Clone this repository (or download and unzip the source):**
    ```bash
    git clone https://github.com/BobJr23/MTGA_Swapper.git
+   ```
+
+   ```bash
    cd MTGA_Swapper
    ```
 
 4. **(Recommended) Create a Python 3.11 virtual environment with `uv`:**
    ```bash
    uv venv --python 3.11
+   ```
+
+   ```bash
    .venv\Scripts\activate
    ```
 
