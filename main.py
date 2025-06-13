@@ -6,6 +6,7 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import io
 from upscaler import upscale_image
+from pathlib import Path
 
 sg.theme("DarkBlue3")
 
@@ -249,8 +250,8 @@ while True:
             )
         save_dir = get_dir("Select a folder to save images to")
         with open("config.json", "w") as f:
-            config["SavePath"] = save_dir
-            config["DatabasePath"] = filename
+            config["SavePath"] = str(Path(save_dir).as_posix())
+            config["DatabasePath"] = str(Path(filename).as_posix())
             f.write(sg.json.dumps(config))
         asset_viewer.set_unity_version(filename, "2022.3.42f1")
         window["-LIST-"].update(base_cards)
@@ -258,7 +259,8 @@ while True:
 
     if event == "-Sleeve-":
         if filename and save_dir:
-            path = os.path.dirname(filename)[0:-3] + r"/AssetBundle"
+            print()
+            path = os.path.dirname(filename)[0:-3] + "AssetBundle"
             files = sorted(
                 [
                     f
@@ -289,7 +291,7 @@ while True:
                 if event3 == "-LIST3-" and len(values3["-LIST3-"]):
                     name = values3["-LIST3-"][0]
 
-                    env = asset_viewer.load(path + "/" + name)
+                    env = asset_viewer.load(os.path.join(path, name))
                     data_list = asset_viewer.get_texture(env)
                     index = 0
                     data = data_list[0] if len(data_list) > 0 else None
@@ -352,7 +354,7 @@ while True:
                                 )
                                 if new != "":
                                     asset_viewer.save_image(
-                                        data, new, path + "/" + name, env
+                                        data, new, os.path.join(path, name), env
                                     )
                                     window4["-IMAGE-"].update(filename=new)
                                     sg.popup_auto_close(
@@ -366,7 +368,10 @@ while True:
                                     )
                             if e == "-SAVE-":
                                 new_path = (
-                                    save_dir + "/" + name + "-" + str(index) + ".png"
+                                    os.path.join(save_dir, name)
+                                    + "-"
+                                    + str(index)
+                                    + ".png"
                                 )
                                 asset_viewer.open_image(data.image, new_path)
                                 sg.popup_auto_close(
@@ -487,7 +492,7 @@ while True:
                 f for f in os.listdir(path) if f.startswith(str(current_card.art_id))
             ][0]
 
-            env = asset_viewer.load(path + "/" + prefixed)
+            env = asset_viewer.load(os.path.join(path, prefixed))
             index = 0
             textures, data_list = asset_viewer.get_card_textures(current_card, filename)
             data = asset_viewer.get_image_from_texture(textures[index])
@@ -568,7 +573,7 @@ while True:
                             asset_viewer.save_image(
                                 data_list[index],
                                 new,
-                                path + "/" + prefixed,
+                                os.path.join(path, prefixed),
                                 env,
                             )
                             window4["-IMAGE-"].update(filename=new)
@@ -582,7 +587,7 @@ while True:
                                 auto_close_duration=1,
                             )
                     if e == "-SAVE-":
-                        new_path = f"{save_dir}/{current_card.name.replace('/', '-')}-{str(index)}-{w}x{h}.png"
+                        new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}.png"
                         asset_viewer.open_image(data, new_path)
                         sg.popup_auto_close(
                             "Image saved successfully!",

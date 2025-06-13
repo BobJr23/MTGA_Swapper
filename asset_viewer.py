@@ -81,7 +81,7 @@ def get_card_textures(card, filename):
             prefixed = [f for f in os.listdir(path) if f.startswith(str(card.art_id))][
                 0
             ]
-            env = load(path + "/" + prefixed)
+            env = load(os.path.join(path, prefixed))
             data = get_texture(env)
             if data and len(data) > 0:
                 return list(map(lambda x: no_alpha(x.image), data)), data
