@@ -523,7 +523,7 @@ while True:
                             sg.Button("Set to Swap 2", key="-S2-"),
                             sg.Button("Set aspect ratio to", key="-AR-"),
                             sg.Input(
-                                "3" if current_card.art_type == "1" else "11",
+                                "3" if current_card.art_type == "1" else "10",
                                 key="-AR-W-",
                                 size=(3, 1),
                             ),
