@@ -222,11 +222,27 @@ while True:
                     format_card,
                     sorted(
                         cur.execute(
-                            "SELECT Order_Title, ExpansionCode, ArtSize, GrpID, ArtID FROM Cards WHERE Order_Title IS NOT NULL"
+                            """
+        SELECT 
+        CASE 
+            WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
+            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN c2.Order_Title || '-flip-side'
+        END AS Order_Title,
+        c1.ExpansionCode,
+        c1.ArtSize,
+        c1.GrpID,
+        c1.ArtID
+        FROM Cards c1
+        LEFT JOIN Cards c2
+        ON c1.LinkedFaceGrpIds = c2.GrpID
+        AND c2.Order_Title IS NOT NULL
+        WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
+    """
                         ).fetchall()
                     ),
                 )
             )
+            cards = base_cards
         except sql_editor.sqlite3.OperationalError:
             sg.popup_error(
                 "Missing or incorrect database selected", auto_close_duration=3
@@ -465,7 +481,7 @@ while True:
         current_card = Card(
             *values["-LIST-"][0].split(),
         )
-
+        print(os.path.dirname(filename), current_card)
         path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
