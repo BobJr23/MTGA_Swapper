@@ -288,7 +288,6 @@ while True:
                     break
                 if event3 == "-LIST3-" and len(values3["-LIST3-"]):
                     name = values3["-LIST3-"][0]
-                    print(name)
 
                     env = asset_viewer.load(path + "/" + name)
                     data_list = asset_viewer.get_texture(env)
@@ -481,7 +480,6 @@ while True:
         current_card = Card(
             *values["-LIST-"][0].split(),
         )
-        print(os.path.dirname(filename), current_card)
         path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
@@ -495,7 +493,6 @@ while True:
             data = asset_viewer.get_image_from_texture(textures[index])
             # Get resolution of the image
             w, h = data_list[index].image.size
-            print(w, h)
             if textures != None:
                 # img_byte_arr = io.BytesIO()
                 # data.save(img_byte_arr, format="PNG")

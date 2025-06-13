@@ -90,9 +90,7 @@ def get_card_textures(card, filename):
             # return img_byte_arr.getvalue()
 
         except Exception:
-            print("Error: No texture found for this card.")
             return None
-    print("Error: No card or filename provided.")
     return None
 
 
