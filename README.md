@@ -35,6 +35,14 @@ Report any issues in Feedback & Support
 ## 🚀 Quick Start
 
 
+# Simple Install
+You can download the .exe file from releases [here](https://github.com/BobJr23/MTGA_Swapper/releases/download/v1.0.0/MTGA_Swapper.exe)
+
+
+**OR**
+
+# Python Method
+
 Check if Git is installed with 
 
 ```bash
