@@ -5,7 +5,7 @@ import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import io
-from upscaler import upscale_image
+from upscaler import upscale_image, resource_path
 from pathlib import Path
 
 sg.theme("DarkBlue3")
@@ -51,6 +51,15 @@ def pil_to_bytes(img):
     return img_byte_arr.getvalue()
 
 
+config_dir = Path.home() / ".mtga_swapper"
+config_dir.mkdir(exist_ok=True)
+config_path = config_dir / "config.json"
+
+if not config_path.exists():
+    with open(resource_path("config.json"), "r") as src:
+        with open(config_path, "w") as dst:
+            dst.write(src.read())
+
 # Load config
 
 if (
@@ -61,7 +70,7 @@ if (
     == "Yes"
 ):
 
-    with open("config.json", "r") as f:
+    with open(config_path, "r") as f:
         config = sg.json.loads(f.read())
         save_dir = config["SavePath"] if config["SavePath"] else None
         if config["DatabasePath"] != "" and os.path.exists(config["DatabasePath"]):
@@ -249,7 +258,7 @@ while True:
                 "Missing or incorrect database selected", auto_close_duration=3
             )
         save_dir = get_dir("Select a folder to save images to")
-        with open("config.json", "w") as f:
+        with open(config_path, "w") as f:
             config["SavePath"] = str(Path(save_dir).as_posix())
             config["DatabasePath"] = str(Path(filename).as_posix())
             f.write(sg.json.dumps(config))
