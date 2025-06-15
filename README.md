@@ -8,6 +8,9 @@ Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:
 
 **✅ Fixed major bugs – fully working**
 
+**NEW: exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases/tag/v1.0.0)**
+
+
 Report any issues in Feedback & Support
 
 
