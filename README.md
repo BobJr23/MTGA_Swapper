@@ -118,6 +118,8 @@ Locate your Arena install folder and choose the appropriate `.mtga` database fil
 
 ![Database Selection](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d76fb165-cb32-447a-a27b-70719b292c9c)
 
+
+
 ---
 
 ### 2. Choose an export folder  
@@ -128,9 +130,25 @@ Pick where you want exported game assets (images) to be saved.
 ### 3. Browse and swap card art  
 Cards will appear in a list. Click one to preview the artwork and select a replacement. (If art shows up as green marks, press "Next in bundle")
 
-![image](https://github.com/user-attachments/assets/cffc1252-8cfa-41f3-a04c-1942575d0627)
+![image](https://github.com/user-attachments/assets/08688897-5dad-4128-8190-149aea42a9fe)
 
-> 🔄 *Note:* "Change style" feature not yet implemented.
+
+![image](https://github.com/user-attachments/assets/e1f971b0-30cf-471b-ba86-fbfe161f8921)
+
+### Upscaling
+To increase image quality, press the upscale button (may take a few seconds). 
+
+It is recommended to upscale the image **before** changing the aspect ratio to achieve the highest quality.
+
+### Set Aspect Ratio
+Click the set aspect ratio button after opening the image if you would like to export them in their proper aspect ratio. 
+- Note: If you would like to edit the asset in-game, don't change the aspect ratio, as Arena will change the ratio for you.
+
+The aspect ratios are 
+
+- 11:8 for most cards
+- 3:4 for planeswalkers and larger art cards (Ex. Eldrazi)
+- 4:3 for battles
 
 ---
 
