@@ -3,7 +3,7 @@
 
 ![Python Version](https://img.shields.io/pypi/pyversions/realesrgan-ncnn-py)
 
-Easily **edit or swap assets** in *Magic: The Gathering Arena*, including:  
+Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
 
 **✅ Fixed major bugs – fully working**
