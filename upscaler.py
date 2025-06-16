@@ -51,6 +51,8 @@ def upscale_image(image_bytes, w, h) -> Image.Image:
 
 
 # Choose the best available execution provider
+
+print("Loading ONNX models...")
 available_providers = ort.get_available_providers()
 
 if "CUDAExecutionProvider" in available_providers:
@@ -64,3 +66,5 @@ session4x = ort.InferenceSession(resource_path("modelscsr.onnx"), providers=prov
 session2x = ort.InferenceSession(
     resource_path("modelesrgan2.onnx"), providers=providers
 )
+
+print("ONNX models loaded successfully.")
