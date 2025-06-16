@@ -25,7 +25,7 @@ def preprocess(img_bytes) -> np.ndarray:
     return img
 
 
-def upscale_image(image_bytes) -> Image.Image:
+def upscale_image(image_bytes, w, h) -> Image.Image:
     """
     Upscale an image using ONNX model.
 
@@ -33,7 +33,15 @@ def upscale_image(image_bytes) -> Image.Image:
     :return: Upscaled PIL image.
     """
     input_tensor = preprocess(image_bytes)
-    output = session.run([output_name], {input_name: input_tensor})[0]
+
+    if w + h <= 1024:
+        session = session4x
+    else:
+        session = session2x
+    output = session.run(
+        [session.get_outputs()[0].name],
+        {session.get_inputs()[0].name: input_tensor},
+    )[0]
 
     # Post-process and return
     output_img = output.squeeze(0).transpose(1, 2, 0)  # CHW to HWC
@@ -52,6 +60,7 @@ elif "DmlExecutionProvider" in available_providers:  # DirectML for AMD
 else:
     providers = ["CPUExecutionProvider"]
 
-session = ort.InferenceSession(resource_path("modelscsr.onnx"), providers=providers)
-input_name = session.get_inputs()[0].name
-output_name = session.get_outputs()[0].name
+session4x = ort.InferenceSession(resource_path("modelscsr.onnx"), providers=providers)
+session2x = ort.InferenceSession(
+    resource_path("modelesrgan2.onnx"), providers=providers
+)

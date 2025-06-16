@@ -605,9 +605,9 @@ while True:
                             auto_close_duration=1,
                         )
                     if e == "-UPSCALE-":
-                        upped = upscale_image(
-                            io.BytesIO(data),
-                        )
+
+                        w, h = textures[index].size
+                        upped = upscale_image(io.BytesIO(data), w, h)
                         img_byte_arr = io.BytesIO()
                         shrunk = asset_viewer.shrink_to_monitor(upped)
                         shrunk.save(img_byte_arr, format="PNG")
