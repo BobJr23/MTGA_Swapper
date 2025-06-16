@@ -158,7 +158,7 @@ layout = [
             [
                 [
                     sg.Text(
-                        "Search by card name (Format: Name, Set, ArtType, GrpID, ArtID)",
+                        "Search by any of these attributes (Format: Name, Set, ArtType, GrpID, ArtID)",
                         justification="left",
                     )
                 ],
@@ -532,7 +532,7 @@ while True:
                             sg.Button("Set to Swap 2", key="-S2-"),
                             sg.Button("Set aspect ratio to", key="-AR-"),
                             sg.Input(
-                                "3" if current_card.art_type == "1" else "10",
+                                "3" if current_card.art_type == "1" else "11",
                                 key="-AR-W-",
                                 size=(3, 1),
                             ),
