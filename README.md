@@ -27,9 +27,12 @@ Report any issues in Feedback & Support
 - [🖼️ How to Use](#️-how-to-use)
   - [1. Select your MTGA database file](#1-select-your-mtga-database-file)
   - [2. Choose an export folder](#2-choose-an-export-folder)
-  - [3. Browse and swap card art](#3-browse-and-swap-card-art)
-  - [4. Swap custom land art](#4-swap-custom-land-art)
-  - [5. Edit other assets](#5-edit-other-assets)
+  - [3. Browse card directory](#3-browse-card-directory)
+  - [4. Edit game assets](#4-edit-game-assets)
+  - [5. Upscaling Art](#5-upscaling-art)
+  - [6. Set Aspect Ratio](#6-set-aspect-ratio)
+  - [7. Swap custom land art](#7-swap-custom-land-art)
+  - [8. Edit other assets](#8-edit-other-assets)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -127,20 +130,32 @@ Pick where you want exported game assets (images) to be saved.
 
 ---
 
-### 3. Browse and swap card art  
-Cards will appear in a list. Click one to preview the artwork and select a replacement. (If art shows up as green marks, press "Next in bundle")
+### 3. Browse card directory
+Cards will appear in a list. Click one to preview the artwork and export the image with the Save button. (If art shows up as green marks, press "Next in bundle")
 
 ![image](https://github.com/user-attachments/assets/08688897-5dad-4128-8190-149aea42a9fe)
 
 
 ![image](https://github.com/user-attachments/assets/e1f971b0-30cf-471b-ba86-fbfe161f8921)
 
-### Upscaling
+
+---
+
+### 4. Edit game assets
+
+After you have made edits to the card you would like, click on Change image, then select your new image file.
+
+---
+
+### 5. Upscaling Art
 To increase image quality, press the upscale button (may take a few seconds). 
 
 It is recommended to upscale the image **before** changing the aspect ratio to achieve the highest quality.
 
-### Set Aspect Ratio
+
+---
+
+### 6. Set Aspect Ratio
 Click the set aspect ratio button after opening the image if you would like to export them in their proper aspect ratio. 
 - Note: If you would like to edit the asset in-game, don't change the aspect ratio, as Arena will change the ratio for you.
 
@@ -152,7 +167,7 @@ The aspect ratios are
 
 ---
 
-### 4. Swap custom land art  
+### 7. Swap custom land art  
 To unlock custom lands:
 
 - Set a **normal** land (ArtSize = 0) as Swap 1
@@ -168,7 +183,7 @@ To unlock custom lands:
 
 ---
 
-### 5. Edit other assets  
+### 8. Edit other assets  
 Change avatars, sleeves, and more using the same interface.
 
 ![Avatar Editing](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/53afa37a-ca57-4a84-9b24-3a91c6becc86)
