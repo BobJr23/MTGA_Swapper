@@ -28,8 +28,10 @@ def create_decklist_window() -> set[str]:
 
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == "Exit":
-
-            cards = values["-DECKLIST-"].strip().split("\n")
+            try:
+                cards = values["-DECKLIST-"].strip().split("\n")
+            except AttributeError:
+                break
 
             if values["-MTGA-"]:
                 cards = list(filter(lambda x: x != "" and x[0] in "123456789", cards))
