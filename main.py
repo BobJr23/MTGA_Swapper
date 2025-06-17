@@ -282,6 +282,9 @@ while True:
 
     if event == "-DL-":
         cards_from_deck = create_decklist_window()
+        window["-UD-"].update(value=True)
+        event = "-UD-"
+        values["-UD-"] = True
 
     if event == "-UD-":
         use_decklist = values["-UD-"]
