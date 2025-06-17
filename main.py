@@ -7,6 +7,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 import io
 from upscaler import upscale_image, resource_path
 from pathlib import Path
+from decklist import create_decklist_window
 
 sg.theme("DarkBlue3")
 
@@ -65,7 +66,7 @@ if not config_path.exists():
 if (
     sg.popup_yes_no(
         "Do you want to load from config file?",
-        title="Reset Config",
+        title="Load Config",
     )
     == "Yes"
 ):
@@ -120,6 +121,8 @@ else:
 
 swap1, swap2 = None, None
 current_input = ""
+use_decklist = False
+cards_from_deck = None
 
 layout = [
     [
@@ -134,6 +137,7 @@ layout = [
                         pad=(5, 5),
                     ),
                     sg.Button("Swap Arts", key="-SA-", size=(15, 1), pad=(5, 5)),
+                    sg.Button("Load Decklist", key="-DL-", size=(15, 1), pad=(5, 5)),
                 ],
                 [
                     sg.Button(
@@ -162,7 +166,17 @@ layout = [
                         justification="left",
                     )
                 ],
-                [sg.Input(size=(40, 1), enable_events=True, key="-INPUT-", pad=(5, 5))],
+                [
+                    sg.Input(
+                        size=(40, 1), enable_events=True, key="-INPUT-", pad=(5, 5)
+                    ),
+                    sg.Checkbox(
+                        "Use Decklist",
+                        key="-UD-",
+                        default=use_decklist,
+                        enable_events=True,
+                    ),
+                ],
                 [
                     sg.Text("Sort by:"),
                     sg.Combo(
@@ -215,7 +229,7 @@ while True:
 
     if event == "-SORTBY-":
         selected_sort = values["-SORTBY-"]
-        sorted_cards = sort_cards(window["-LIST-"].Values or base_cards, selected_sort)
+        sorted_cards = sort_cards(window["-LIST-"].Values or cards, selected_sort)
         window["-LIST-"].update(sorted_cards)
 
     if event == "-DB-":
@@ -263,12 +277,35 @@ while True:
             config["DatabasePath"] = str(Path(filename).as_posix())
             f.write(sg.json.dumps(config))
         asset_viewer.set_unity_version(filename, "2022.3.42f1")
-        window["-LIST-"].update(base_cards)
+        window["-LIST-"].update(cards)
         window["-Sleeve-"].update("Change Sleeves, Avatars, etc.", disabled=False)
+
+    if event == "-DL-":
+        cards_from_deck = create_decklist_window()
+
+    if event == "-UD-":
+        use_decklist = values["-UD-"]
+        if use_decklist:
+            if cards_from_deck is None:
+                sg.popup_error(
+                    "Load a decklist first or disable Use Decklist",
+                    auto_close_duration=3,
+                )
+                window["-UD-"].update(value=False)
+                continue
+
+            filtered_cards = [c for c in cards if c[:15].strip() in cards_from_deck]
+            cards = filtered_cards
+            print(cards_from_deck)
+            if filtered_cards:
+                window["-LIST-"].update(filtered_cards)
+
+        else:
+            window["-LIST-"].update(base_cards)
 
     if event == "-Sleeve-":
         if filename and save_dir:
-            print()
+
             path = os.path.dirname(filename)[0:-3] + "AssetBundle"
             files = sorted(
                 [
@@ -482,12 +519,12 @@ while True:
             current_input = values["-INPUT-"].replace(" ", "").lower()
             search = current_input
 
-            new_values = [x for x in base_cards if search in x.lower()]
+            new_values = [x for x in cards if search in x.lower()]
 
             window["-LIST-"].update(new_values)
     else:
         if current_input != "":
-            window["-LIST-"].update(base_cards)
+            window["-LIST-"].update(cards)
             current_input = ""
 
     if event == "-LIST-" and values["-LIST-"]:
@@ -507,11 +544,8 @@ while True:
             index = 0
             textures, data_list = asset_viewer.get_card_textures(current_card, filename)
             data = asset_viewer.get_image_from_texture(textures[index])
-            # Get resolution of the image
             w, h = data_list[index].image.size
             if textures != None:
-                # img_byte_arr = io.BytesIO()
-                # data.save(img_byte_arr, format="PNG")
 
                 window4 = sg.Window(
                     "Showing: " + current_card.name + " Art",

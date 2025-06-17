@@ -1,20 +1,21 @@
 import UnityPy
 from PIL import Image
 from tkinter.filedialog import askopenfilename, askdirectory
+import UnityPy.classes
 import UnityPy.config
 from pathlib import Path
 import io
 import os
 
 
-def no_alpha(image):
+def no_alpha(image) -> Image.Image:
     """Remove alpha channel from an image."""
     if image.mode == "RGBA":
         image = image.convert("RGB")
     return image
 
 
-def shrink_to_monitor(image, target_width=1920, target_height=1080):
+def shrink_to_monitor(image, target_width=1920, target_height=1080) -> Image.Image:
     """Resize an image to fit within the target dimensions while maintaining aspect ratio."""
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
@@ -34,7 +35,9 @@ def shrink_to_monitor(image, target_width=1920, target_height=1080):
     return resized_image
 
 
-def set_aspect_ratio(image, target_aspect_ratio=(10, 8), ratio=True):
+def set_aspect_ratio(
+    image, target_aspect_ratio=(10, 8), ratio=True
+) -> tuple[Image.Image, int, int]:
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
 
@@ -54,7 +57,7 @@ def set_aspect_ratio(image, target_aspect_ratio=(10, 8), ratio=True):
     return resized, target_width, target_height
 
 
-def set_unity_version(path, version):
+def set_unity_version(path, version) -> None:
 
     try:
         with open(Path(path).parents[2] / "level0", "rb") as fp:
@@ -65,7 +68,7 @@ def set_unity_version(path, version):
         UnityPy.config.FALLBACK_UNITY_VERSION = version
 
 
-def get_texture(env):
+def get_texture(env: UnityPy.Environment) -> list[UnityPy.classes.Texture2D]:
 
     return sorted(
         [obj.read() for obj in env.objects if obj.type.name == "Texture2D"],
@@ -74,7 +77,9 @@ def get_texture(env):
     )
 
 
-def get_card_textures(card, filename):
+def get_card_textures(
+    card, filename
+) -> tuple[list[Image.Image] | None, list[UnityPy.classes.Texture2D] | None] | None:
     if card and filename:
         try:
 
@@ -101,7 +106,7 @@ def get_card_textures(card, filename):
     return None
 
 
-def get_image_from_texture(texture):
+def get_image_from_texture(texture) -> bytes | None:
     if texture:
         img_byte_arr = io.BytesIO()
         texture.save(img_byte_arr, format="PNG")
@@ -109,16 +114,15 @@ def get_image_from_texture(texture):
     return None
 
 
-def open_image(data, path):
+def open_image(data, path) -> Image.Image:
     if type(data) == bytes:
         data = Image.open(io.BytesIO(data))
     no_alpha(data).save(path)
 
     return data
-    # edit texture
 
 
-def save_image(data, new_path, src, env):
+def save_image(data, new_path, src, env) -> None:
 
     data.image = no_alpha(Image.open(new_path))
     data.save()
@@ -126,7 +130,7 @@ def save_image(data, new_path, src, env):
         f.write(env.file.save())
 
 
-def load(path):
+def load(path) -> UnityPy.Environment:
     try:
         return UnityPy.load(path)
     except UnityPy.exceptions.UnityVersionFallbackError as e:
@@ -137,7 +141,7 @@ def load(path):
         return UnityPy.load(path)
 
 
-def get_fonts(env: UnityPy.Environment, path):
+def get_fonts(env: UnityPy.Environment, path) -> None:
     """Get all fonts from the Unity environment."""
 
     for obj in env.objects:
