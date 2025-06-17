@@ -1,13 +1,13 @@
-import sql_editor
-import asset_viewer
+import src.sql_editor as sql_editor
+import src.asset_viewer as asset_viewer
+from src.upscaler import upscale_image, resource_path
+from src.decklist import create_decklist_window
 import FreeSimpleGUI as sg
-import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
-import io
-from upscaler import upscale_image, resource_path
 from pathlib import Path
-from decklist import create_decklist_window
+import os
+import io
 
 sg.theme("DarkBlue3")
 
