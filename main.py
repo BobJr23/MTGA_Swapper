@@ -294,7 +294,9 @@ while True:
                 window["-UD-"].update(value=False)
                 continue
 
-            filtered_cards = [c for c in cards if c[:15].strip() in cards_from_deck]
+            filtered_cards = [
+                c for c in base_cards if c[:15].strip() in cards_from_deck
+            ]
             cards = filtered_cards
             print(cards_from_deck)
             if filtered_cards:
