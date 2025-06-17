@@ -33,6 +33,7 @@ Report any issues in Feedback & Support
   - [6. Set Aspect Ratio](#6-set-aspect-ratio)
   - [7. Swap custom land art](#7-swap-custom-land-art)
   - [8. Edit other assets](#8-edit-other-assets)
+  - [9. Import Decklists](#9-import-decklists)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -188,6 +189,18 @@ Change avatars, sleeves, and more using the same interface.
 
 ![Avatar Editing](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/53afa37a-ca57-4a84-9b24-3a91c6becc86)
 
+
+---
+
+### 9. Import Decklists 
+
+- You can paste MTG Arena decklists or .txt files to filter certain cards you use. Make sure the Use Decklist toggle is checked after importing
+  
+![image](https://github.com/user-attachments/assets/75dbd661-48af-4eca-995a-ff0ff27d2df5)
+
+
+
+
 ---
    If you want to export the font files in ttf format, run
    ```bash
@@ -195,6 +208,7 @@ Change avatars, sleeves, and more using the same interface.
    ```
 
 ---
+
 
 ## ✨ Final In-Game Results
 
