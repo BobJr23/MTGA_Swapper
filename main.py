@@ -673,6 +673,7 @@ while True:
                                 float(values["-AR-H-"]),
                             ),
                         )
+                        resized = asset_viewer.shrink_to_monitor(resized)
                         resized.save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
