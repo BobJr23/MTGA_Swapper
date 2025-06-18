@@ -307,6 +307,7 @@ while True:
 
         else:
             window["-LIST-"].update(base_cards)
+            cards = base_cards
 
     if event == "-Sleeve-":
         if filename and save_dir:
