@@ -1,0 +1,85 @@
+name: Build and Release EXE
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.py'
+      - '**.spec'
+      - '.github/workflows/**'
+
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, 'release')
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: List files in the repository
+      run: |
+        dir ${{ github.workspace }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build EXE with PyInstaller
+      shell: pwsh
+      run: |
+        pyinstaller --noconfirm --onefile --console `
+          --icon "swaplogo.ico" `
+          --name "MTGA_Swapper" `
+          --add-data "modelscsr.onnx;." `
+          --add-data "modelesrgan2.onnx;." `
+          --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
+          --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
+          --add-data "config.json;." `
+          main.py
+
+    - name: List dist contents
+      run: dir dist
+
+    - name: Extract tag and body from commit message
+      id: extract_tag
+      shell: bash
+      run: |
+        echo "Commit message: ${{ github.event.head_commit.message }}"
+
+        TAG=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/.*release[[:space:]]\+\(v[0-9.]\+\).*/\1/p')
+        BODY=$(echo "${{ github.event.head_commit.message }}" | sed -n 's/^\(.*\)[[:space:]]release[[:space:]]\+v[0-9.]\+.*$/\1/p')
+
+        if [ -z "$TAG" ]; then
+          echo "❌ No tag found in commit message. Expected format: 'something release vX.Y.Z'"
+          exit 1
+        fi
+
+        echo "✅ Extracted tag: $TAG"
+        echo "✅ Extracted body: $BODY"
+
+        echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+        echo "release_body=$BODY" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release and Upload Files
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.extract_tag.outputs.tag_name }}
+        name: Release ${{ steps.extract_tag.outputs.tag_name }}
+        body: ${{ steps.extract_tag.outputs.release_body }}
+        files: |
+          dist/MTGA_Swapper.exe
+          modelscsr.onnx
+          modelesrgan2.onnx
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
