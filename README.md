@@ -43,7 +43,7 @@ Report any issues in Feedback & Support
 
 
 # Simple Install
-You can download the .exe file from releases [here](https://github.com/BobJr23/MTGA_Swapper/releases/download/v1.0.0/MTGA_Swapper.exe)
+You can download the .exe file from releases [here](https://github.com/BobJr23/MTGA_Swapper/releases)
 
 
 **OR**
