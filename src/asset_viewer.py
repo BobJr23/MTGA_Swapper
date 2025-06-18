@@ -36,21 +36,22 @@ def shrink_to_monitor(image, target_width=1920, target_height=1080) -> Image.Ima
 
 
 def set_aspect_ratio(
-    image, target_aspect_ratio=(10, 8), ratio=True
+    image, target_aspect_ratio=(11, 8), ratio=True
 ) -> tuple[Image.Image, int, int]:
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
 
     width, height = image.size
 
-    # Compute target height based on current width and desired aspect ratio
-    target_height = height
-    if ratio:
-        target_width = int(
-            target_height * target_aspect_ratio[0] / target_aspect_ratio[1]
-        )
+    current_aspect = width / height
+    target_aspect = target_aspect_ratio[0] / target_aspect_ratio[1]
+
+    if current_aspect > target_aspect:
+        target_height = height
+        target_width = int(height * target_aspect)
     else:
         target_width = width
+        target_height = int(width / target_aspect)
 
     # Resize (stretch) the image to this new size
     resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
