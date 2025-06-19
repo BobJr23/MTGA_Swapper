@@ -1,0 +1,3 @@
+FreeSimpleGUI==5.2.0
+UnityPy==1.22.4
+typing-extensions==4.13.2

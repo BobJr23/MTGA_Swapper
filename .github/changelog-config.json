@@ -1,0 +1,4 @@
+{
+  "template": "#{{UNCATEGORIZED}}\n",
+  "commit_template": "- #{{TITLE}}\n   - Commit: #{{MERGE_SHA}}  "
+}    
