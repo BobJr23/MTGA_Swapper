@@ -359,7 +359,6 @@ while True:
                                     sg.Button("Previous in bundle", key="-L-"),
                                     sg.Button("Next in bundle", key="-R-"),
                                     sg.Button("Save", key="-SAVE-"),
-                                    sg.Button("Close", key="Exit"),
                                 ],
                                 [
                                     sg.Image(
@@ -583,7 +582,6 @@ while True:
                             ),
                             sg.Button("Save", key="-SAVE-"),
                             sg.Button("Upscale", key="-UPSCALE-"),
-                            sg.Button("Close", key="-EXIT-"),
                         ],
                         [
                             sg.Image(
