@@ -373,6 +373,17 @@ while True:
                                     sg.Button("Change image", key="-CI-"),
                                     sg.Button("Previous in bundle", key="-L-"),
                                     sg.Button("Next in bundle", key="-R-"),
+                                    sg.Button("Set aspect ratio to", key="-AR-"),
+                                    sg.Input(
+                                        "Width",
+                                        key="-AR-W-",
+                                        size=(3, 1),
+                                    ),
+                                    sg.Input(
+                                        "Height",
+                                        key="-AR-H-",
+                                        size=(3, 1),
+                                    ),
                                     sg.Button("Save", key="-SAVE-"),
                                 ],
                                 [
@@ -389,7 +400,7 @@ while True:
                         )
 
                         while True:
-                            e, _ = window4.read()
+                            e, values = window4.read()
                             if e == "Exit" or e == sg.WIN_CLOSED:
                                 break
                             if e == "-L-":
@@ -432,6 +443,19 @@ while True:
                                         "Invalid image file",
                                         auto_close_duration=1,
                                     )
+                            if e == "-AR-":
+                                img_byte_arr = io.BytesIO()
+                                resized, w, h = asset_viewer.set_aspect_ratio(
+                                    data.image,
+                                    (
+                                        float(values["-AR-W-"]),
+                                        float(values["-AR-H-"]),
+                                    ),
+                                )
+                                resized.save(img_byte_arr, format="PNG")
+
+                                window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                                data = img_byte_arr.getvalue()
                             if e == "-SAVE-":
                                 new_path = (
                                     os.path.join(save_dir, name)
@@ -681,6 +705,7 @@ while True:
 
                     if e == "-AR-":
                         img_byte_arr = io.BytesIO()
+                        print(type(data))
                         resized, w, h = asset_viewer.set_aspect_ratio(
                             data,
                             (
