@@ -14,10 +14,6 @@ Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, includ
 Report any issues in Feedback & Support
 
 
-
-> 📢 Full explanation & community post on Reddit:  
-> [MTG Arena Asset Editor/Extractor](https://www.reddit.com/r/MagicArena/comments/1avproc/mtg_arena_asset_editorextractor/)
-
 ---
 
 ## 📚 Table of Contents
