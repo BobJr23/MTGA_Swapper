@@ -111,6 +111,7 @@ if (
             except (
                 sql_editor.sqlite3.OperationalError,
                 sql_editor.sqlite3.DatabaseError,
+                TypeError,
             ):
                 sg.popup_error(
                     "Missing or incorrect database selected", auto_close_duration=3
@@ -163,8 +164,27 @@ layout = [
                         ),
                         key="-Sleeve-",
                         disabled=filename is None,
-                        size=(60, 1),
+                        size=(35, 1),
+                        expand_x=True,
                         pad=(5, 5),
+                    )
+                ],
+                [
+                    sg.Input(
+                        "Database: " + (filename if filename else "None"),
+                        key="DB-Display",
+                        readonly=True,
+                        font=("Segoe UI", 8),
+                        size=(80, 1),
+                    )
+                ],
+                [
+                    sg.Input(
+                        "Image Save Location: " + (save_dir if save_dir else "None"),
+                        key="IMG-Display",
+                        readonly=True,
+                        font=("Segoe UI", 8),
+                        size=(80, 1),
                     )
                 ],
             ],
@@ -234,6 +254,7 @@ window = sg.Window(
     font=("Segoe UI", 10),
     element_justification="center",
     background_color="#1B2838",
+    relative_location=(0, 0),
 )
 
 # Main Event Loop
@@ -282,7 +303,11 @@ while True:
                 )
             )
             cards = base_cards
-        except (sql_editor.sqlite3.OperationalError, sql_editor.sqlite3.DatabaseError):
+        except (
+            sql_editor.sqlite3.OperationalError,
+            sql_editor.sqlite3.DatabaseError,
+            TypeError,
+        ):
             sg.popup_error(
                 "Missing or incorrect database selected", auto_close_duration=3
             )
@@ -294,6 +319,10 @@ while True:
         asset_viewer.set_unity_version(filename, "2022.3.42f1")
         window["-LIST-"].update(cards)
         window["-Sleeve-"].update("Change Sleeves, Avatars, etc.", disabled=False)
+        window["DB-Display"].update("Database: " + (filename if filename else "None"))
+        window["IMG-Display"].update(
+            "Image Save Location: " + (save_dir if save_dir else "None")
+        )
 
     if event == "-DL-":
         cards_from_deck = create_decklist_window()
@@ -336,13 +365,14 @@ while True:
                 ]
             )
             window3 = sg.Window(
-                "Select a file to change the sleeve/avatar of",
+                "Select a file to change/view the assets of",
                 [
                     [sg.Text("Search for files by type")],
-                    [sg.Input(size=(20, 1), enable_events=True, key="-INPUT3-")],
+                    [sg.Input(size=(90, 1), enable_events=True, key="-INPUT3-")],
+                    [sg.Button("Export all images below", key="-EXPORT-")],
                     [
                         sg.Listbox(
-                            files, size=(50, 40), enable_events=True, key="-LIST3-"
+                            files, size=(90, 40), enable_events=True, key="-LIST3-"
                         )
                     ],
                 ],
@@ -355,6 +385,28 @@ while True:
                 event3, values3 = window3.read()
                 if event3 == "Exit" or event3 == sg.WIN_CLOSED:
                     break
+                if event3 == "-EXPORT-":
+                    exporting_cards = window3["-LIST3-"].Values
+                    print(exporting_cards)
+                    if (
+                        sg.popup_yes_no(
+                            f"Are you sure you want to export these {len(exporting_cards)} file bundles?"
+                        )
+                        == "Yes"
+                    ):
+                        if not os.path.exists(save_dir):
+                            os.makedirs(save_dir)
+                        for name in exporting_cards:
+                            env = asset_viewer.load(os.path.join(path, name))
+                            data_list = asset_viewer.get_texture(env)
+                            for i, item in enumerate(data_list):
+                                new_path = (
+                                    os.path.join(save_dir, name) + "-" + str(i) + ".png"
+                                )
+                                asset_viewer.open_image(item.image, new_path)
+                        sg.popup_auto_close(
+                            "All images exported successfully!", auto_close_duration=1
+                        )
                 if event3 == "-LIST3-" and len(values3["-LIST3-"]):
                     name = values3["-LIST3-"][0]
 
@@ -366,108 +418,227 @@ while True:
                         img_byte_arr = io.BytesIO()
                         data.image.save(img_byte_arr, format="PNG")
 
-                        window4 = sg.Window(
-                            "Showing: " + name + " Art",
+                        # Show all images in a grid in one window (default view)
+                        images_per_row = 3
+                        gallery_images = []
+                        for i, item in enumerate(data_list):
+                            img_bytes = io.BytesIO()
+                            item.image.save(img_bytes, format="PNG")
+                            # Resize the image using your resize function before displaying
+                            resized_img, _, _ = asset_viewer.set_aspect_ratio(
+                                item.image, (200, 200), ratio=False
+                            )
+                            resized_bytes = io.BytesIO()
+                            resized_img.save(resized_bytes, format="PNG")
+                            gallery_images.append(
+                                sg.Button(
+                                    image_data=resized_bytes.getvalue(),
+                                    key=f"-GALLERY-IMG-{i}-",
+                                    pad=(5, 5),
+                                    tooltip=f"Click to view/edit image {i+1}",
+                                )
+                            )
+                        # Arrange images in rows
+                        gallery_rows = [
+                            gallery_images[i : i + images_per_row]
+                            for i in range(0, len(gallery_images), images_per_row)
+                        ]
+                        # Use a Column for vertical scrolling
+                        gallery_column = [row for row in gallery_rows]
+                        gallery_layout = [
                             [
-                                [
-                                    sg.Button("Change image", key="-CI-"),
-                                    sg.Button("Previous in bundle", key="-L-"),
-                                    sg.Button("Next in bundle", key="-R-"),
-                                    sg.Button("Set aspect ratio to", key="-AR-"),
-                                    sg.Input(
-                                        "Width",
-                                        key="-AR-W-",
-                                        size=(3, 1),
-                                    ),
-                                    sg.Input(
-                                        "Height",
-                                        key="-AR-H-",
-                                        size=(3, 1),
-                                    ),
-                                    sg.Button("Save", key="-SAVE-"),
-                                ],
-                                [
-                                    sg.Image(
-                                        data=img_byte_arr.getvalue(),
-                                        key="-IMAGE-",
-                                    )
-                                ],
+                                sg.Text(
+                                    "Gallery for: "
+                                    + name
+                                    + " ("
+                                    + str(len(data_list))
+                                    + " images)"
+                                )
                             ],
+                            [sg.Text("Click on an image to view/edit full size")],
+                            [sg.Button("Export all images", key="-EXPORT-")],
+                            [
+                                sg.Column(
+                                    gallery_column,
+                                    scrollable=True,
+                                    vertical_scroll_only=True,
+                                    size=(700, 500),
+                                )
+                            ],
+                            [sg.Button("Close Gallery", key="-CLOSE-")],
+                        ]
+                        window_gallery = sg.Window(
+                            "Gallery",
+                            gallery_layout,
                             modal=True,
                             grab_anywhere=True,
-                            location=(0, 0),
                             finalize=True,
+                            location=(0, 0),
                         )
 
                         while True:
-                            e, values = window4.read()
-                            if e == "Exit" or e == sg.WIN_CLOSED:
+                            e_gallery, values_gallery = window_gallery.read()
+                            if e_gallery in (sg.WIN_CLOSED, "-CLOSE-"):
+                                window_gallery.close()
                                 break
-                            if e == "-L-":
-                                index -= 1
-                                if index < 0:
-                                    index = len(data_list) - 1
-                                data = data_list[index]
-                                if data != None:
-                                    img_byte_arr = io.BytesIO()
-                                    data.image.save(img_byte_arr, format="PNG")
-                                    window4["-IMAGE-"].update(
-                                        data=img_byte_arr.getvalue()
-                                    )
-                            if e == "-R-":
-                                index += 1
-                                if index >= len(data_list):
-                                    index = 0
-                                data = data_list[index]
-                                if data != None:
-                                    img_byte_arr = io.BytesIO()
-                                    data.image.save(img_byte_arr, format="PNG")
-                                    window4["-IMAGE-"].update(
-                                        data=img_byte_arr.getvalue()
-                                    )
-                            if e == "-CI-":
-                                new = get_file(
-                                    "Select your new image", "image files", "*.png"
-                                )
-                                if new != "":
-                                    asset_viewer.save_image(
-                                        data, new, os.path.join(path, name), env
-                                    )
-                                    window4["-IMAGE-"].update(filename=new)
-                                    sg.popup_auto_close(
-                                        "Image changed successfully!",
-                                        auto_close_duration=1,
-                                    )
-                                else:
-                                    sg.popup_error(
-                                        "Invalid image file",
-                                        auto_close_duration=1,
-                                    )
-                            if e == "-AR-":
-                                img_byte_arr = io.BytesIO()
-                                resized, w, h = asset_viewer.set_aspect_ratio(
-                                    data.image,
-                                    (
-                                        float(values["-AR-W-"]),
-                                        float(values["-AR-H-"]),
-                                    ),
-                                )
-                                resized.save(img_byte_arr, format="PNG")
+                            # Check if any image was clicked
+                            if e_gallery == "-EXPORT-":
 
-                                window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
-                                data = img_byte_arr.getvalue()
-                            if e == "-SAVE-":
-                                new_path = (
-                                    os.path.join(save_dir, name)
-                                    + "-"
-                                    + str(index)
-                                    + ".png"
-                                )
-                                asset_viewer.open_image(data.image, new_path)
+                                if not os.path.exists(save_dir):
+                                    os.makedirs(save_dir)
+                                for i, item in enumerate(data_list):
+                                    new_path = (
+                                        os.path.join(save_dir, name)
+                                        + "-"
+                                        + str(i)
+                                        + ".png"
+                                    )
+                                    asset_viewer.open_image(item.image, new_path)
                                 sg.popup_auto_close(
-                                    "Image saved successfully!",
+                                    "All images exported successfully!",
                                     auto_close_duration=1,
                                 )
+                            for i in range(len(data_list)):
+                                if e_gallery == f"-GALLERY-IMG-{i}-":
+                                    # Open the single image window with all options
+                                    index = i
+                                    data = data_list[index]
+                                    data = asset_viewer.shrink_to_monitor(data.image)
+
+                                    img_byte_arr = io.BytesIO()
+                                    data.save(img_byte_arr, format="PNG")
+                                    w, h = data.size
+                                    window4 = sg.Window(
+                                        "Showing: " + name + " Art",
+                                        [
+                                            [
+                                                sg.Button("Change image", key="-CI-"),
+                                                sg.Button(
+                                                    "Previous in bundle", key="-L-"
+                                                ),
+                                                sg.Button("Next in bundle", key="-R-"),
+                                                sg.Button(
+                                                    "Show bundle gallery",
+                                                    key="-Gallery-",
+                                                ),
+                                                sg.Button(
+                                                    "Set aspect ratio to", key="-AR-"
+                                                ),
+                                                sg.Input(
+                                                    "Width",
+                                                    key="-AR-W-",
+                                                    size=(3, 1),
+                                                ),
+                                                sg.Input(
+                                                    "Height",
+                                                    key="-AR-H-",
+                                                    size=(3, 1),
+                                                ),
+                                                sg.Button("Save", key="-SAVE-"),
+                                            ],
+                                            [
+                                                sg.Image(
+                                                    data=img_byte_arr.getvalue(),
+                                                    key="-IMAGE-",
+                                                )
+                                            ],
+                                        ],
+                                        modal=True,
+                                        grab_anywhere=True,
+                                        location=(0, 0),
+                                        finalize=True,
+                                    )
+
+                                    while True:
+                                        e, values = window4.read()
+                                        if e == "Exit" or e == sg.WIN_CLOSED:
+                                            break
+                                        if e == "-L-":
+                                            index -= 1
+                                            if index < 0:
+                                                index = len(data_list) - 1
+                                            data = data_list[index]
+                                            if data is not None:
+                                                img_byte_arr = io.BytesIO()
+                                                data.image.save(
+                                                    img_byte_arr, format="PNG"
+                                                )
+                                                window4["-IMAGE-"].update(
+                                                    data=img_byte_arr.getvalue()
+                                                )
+                                        if e == "-R-":
+                                            index += 1
+                                            if index >= len(data_list):
+                                                index = 0
+                                            data = data_list[index]
+                                            if data is not None:
+                                                img_byte_arr = io.BytesIO()
+                                                data.image.save(
+                                                    img_byte_arr, format="PNG"
+                                                )
+                                                window4["-IMAGE-"].update(
+                                                    data=img_byte_arr.getvalue()
+                                                )
+                                        if e == "-CI-":
+                                            new = get_file(
+                                                "Select your new image",
+                                                "image files",
+                                                "*.png",
+                                            )
+                                            if new != "":
+                                                asset_viewer.save_image(
+                                                    data,
+                                                    new,
+                                                    os.path.join(path, name),
+                                                    env,
+                                                )
+                                                window4["-IMAGE-"].update(filename=new)
+                                                sg.popup_auto_close(
+                                                    "Image changed successfully!",
+                                                    auto_close_duration=1,
+                                                )
+                                            else:
+                                                sg.popup_error(
+                                                    "Invalid image file",
+                                                    auto_close_duration=1,
+                                                )
+                                        if e == "-AR-":
+                                            img_byte_arr = io.BytesIO()
+                                            resized, w, h = (
+                                                asset_viewer.set_aspect_ratio(
+                                                    data.image,
+                                                    (
+                                                        float(values["-AR-W-"]),
+                                                        float(values["-AR-H-"]),
+                                                    ),
+                                                )
+                                            )
+                                            resized.save(img_byte_arr, format="PNG")
+
+                                            window4["-IMAGE-"].update(
+                                                data=img_byte_arr.getvalue()
+                                            )
+                                            data = img_byte_arr.getvalue()
+                                        if e == "-SAVE-":
+                                            new_path = (
+                                                os.path.join(save_dir, name)
+                                                + "-"
+                                                + str(index)
+                                                + ".png"
+                                            )
+                                            asset_viewer.open_image(
+                                                data.image, new_path
+                                            )
+                                            sg.popup_auto_close(
+                                                "Image saved successfully!",
+                                                auto_close_duration=1,
+                                            )
+                                        if e == "-Gallery-":
+                                            window4.close()
+                                            break  # Return to gallery
+                                    window4.close()
+                                    break  # After closing image window, return to gallery
+
                     else:
                         sg.popup_error(
                             "Invalid texture file",
@@ -546,7 +717,13 @@ while True:
                 sg.Button("Cancel", key="-CANCEL-"),
             ],
         ]
-        window_swap = sg.Window("Confirm Swap", layout_swap, modal=True, finalize=True)
+        window_swap = sg.Window(
+            "Confirm Swap",
+            layout_swap,
+            modal=True,
+            finalize=True,
+            relative_location=(0, 0),
+        )
         while True:
             e_swap, _ = window_swap.read()
             if e_swap in (sg.WIN_CLOSED, "-CANCEL-"):
@@ -558,7 +735,7 @@ while True:
                 window_swap.close()
                 break
 
-    if values["-INPUT-"] != "":
+    if values and values["-INPUT-"] != "":
         if values["-INPUT-"] != current_input:
             current_input = values["-INPUT-"].replace(" ", "").lower()
             search = current_input

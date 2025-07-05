@@ -40,20 +40,25 @@ def set_aspect_ratio(
 ) -> tuple[Image.Image, int, int]:
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
+    if ratio:
+        width, height = image.size
 
-    width, height = image.size
+        current_aspect = width / height
+        target_aspect = target_aspect_ratio[0] / target_aspect_ratio[1]
 
-    current_aspect = width / height
-    target_aspect = target_aspect_ratio[0] / target_aspect_ratio[1]
-
-    if current_aspect > target_aspect:
-        target_height = height
-        target_width = int(height * target_aspect)
-    else:
-        target_width = width
-        target_height = int(width / target_aspect)
+        if current_aspect > target_aspect:
+            target_height = height
+            target_width = int(height * target_aspect)
+        else:
+            target_width = width
+            target_height = int(width / target_aspect)
 
     # Resize (stretch) the image to this new size
+    else:
+        if sum(target_aspect_ratio) > sum(image.size):
+            return image, *image.size
+        else:
+            target_width, target_height = target_aspect_ratio
     resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
     return resized, target_width, target_height
 
