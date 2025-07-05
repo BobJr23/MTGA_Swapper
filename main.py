@@ -80,32 +80,43 @@ if (
         save_dir = config["SavePath"] if config["SavePath"] else None
         if config["DatabasePath"] != "" and os.path.exists(config["DatabasePath"]):
             filename = config["DatabasePath"]
-            cur, con, filename = sql_editor.main(filename)
-            base_cards = list(
-                map(
-                    format_card,
-                    sorted(
-                        cur.execute(
-                            """
-        SELECT 
-        CASE 
-            WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
-            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN c2.Order_Title || '-flip-side'
-        END AS Order_Title,
-        c1.ExpansionCode,
-        c1.ArtSize,
-        c1.GrpID,
-        c1.ArtID
-        FROM Cards c1
-        LEFT JOIN Cards c2
-        ON c1.LinkedFaceGrpIds = c2.GrpID
-        AND c2.Order_Title IS NOT NULL
-        WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
-    """
-                        ).fetchall()
-                    ),
+            try:
+                cur, con, filename = sql_editor.main(filename)
+
+                base_cards = list(
+                    map(
+                        format_card,
+                        sorted(
+                            cur.execute(
+                                """
+            SELECT 
+            CASE 
+                WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
+                WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN c2.Order_Title || '-flip-side'
+            END AS Order_Title,
+            c1.ExpansionCode,
+            c1.ArtSize,
+            c1.GrpID,
+            c1.ArtID
+            FROM Cards c1
+            LEFT JOIN Cards c2
+            ON c1.LinkedFaceGrpIds = c2.GrpID
+            AND c2.Order_Title IS NOT NULL
+            WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
+        """
+                            ).fetchall()
+                        ),
+                    )
                 )
-            )
+            except (
+                sql_editor.sqlite3.OperationalError,
+                sql_editor.sqlite3.DatabaseError,
+            ):
+                sg.popup_error(
+                    "Missing or incorrect database selected", auto_close_duration=3
+                )
+                filename = None
+                base_cards = ["Select a database first"]
             cards = base_cards
             asset_viewer.set_unity_version(filename, "2022.3.42f1")
         else:
@@ -237,14 +248,14 @@ while True:
         window["-LIST-"].update(sorted_cards)
 
     if event == "-DB-":
-        cur, con, filename = sql_editor.main(
-            get_file(
-                "Select your Raw_CardDatabase mtga file in Raw Folder",
-                "mtga files",
-                "*.mtga",
-            )
+        filename = get_file(
+            "Select your Raw_CardDatabase mtga file in Raw Folder",
+            "mtga files",
+            "*.mtga",
         )
         try:
+            cur, con, filename = sql_editor.main(filename)
+
             base_cards = list(
                 map(
                     format_card,
@@ -271,7 +282,7 @@ while True:
                 )
             )
             cards = base_cards
-        except sql_editor.sqlite3.OperationalError:
+        except (sql_editor.sqlite3.OperationalError, sql_editor.sqlite3.DatabaseError):
             sg.popup_error(
                 "Missing or incorrect database selected", auto_close_duration=3
             )
