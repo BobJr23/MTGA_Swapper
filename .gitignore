@@ -5,4 +5,4 @@ uitesting.py
 output
 dist
 build
-main.spec
+*.spec

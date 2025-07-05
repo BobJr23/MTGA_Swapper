@@ -1,6 +1,10 @@
 import src.sql_editor as sql_editor
 import src.asset_viewer as asset_viewer
-from src.upscaler import upscale_image, resource_path
+from src.upscaler import upscaling, resource_path
+
+if upscaling:
+    from src.upscaler import upscale_image
+
 from src.decklist import create_decklist_window
 import FreeSimpleGUI as sg
 from tkinter import Tk
@@ -581,7 +585,9 @@ while True:
                                 size=(3, 1),
                             ),
                             sg.Button("Save", key="-SAVE-"),
-                            sg.Button("Upscale", key="-UPSCALE-"),
+                            sg.Button(
+                                "Upscale", key="-UPSCALE-", disabled=not upscaling
+                            ),
                         ],
                         [
                             sg.Image(
