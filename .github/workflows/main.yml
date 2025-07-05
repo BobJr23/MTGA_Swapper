@@ -38,7 +38,7 @@ jobs:
           --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
           --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
           --add-data "config.json;." `
-          main_noupscale.py
+          main.py
           
     - name: Install Upscaling dependencies
       run: |
