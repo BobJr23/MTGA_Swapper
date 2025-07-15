@@ -114,7 +114,9 @@ If not,
 ## 🖼️ How to Use
 
 ### 1. Select your MTGA database file  
-Locate your Arena install folder and choose the appropriate `.mtga` database file.
+Locate your Arena install folder and choose the appropriate `Raw_CardDatabase... .mtga` database file.
+
+**(Default installation path is ```C:\Program Files (x86)\Wizards of the Coast```)**
 
 ![Database Selection](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d76fb165-cb32-447a-a27b-70719b292c9c)
 
