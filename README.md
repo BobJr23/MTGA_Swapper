@@ -95,6 +95,8 @@ If not,
    uv pip install -r requirements.txt
    ```
 
+   > Use requirements_noupscale.txt if you don't care about upscaling the images (saves space and time)
+
 6. **Run the application:**
    ```bash
    uv run main.py
