@@ -30,6 +30,7 @@ Report any issues in Feedback & Support
   - [7. Swap custom land art](#7-swap-custom-land-art)
   - [8. Edit other assets](#8-edit-other-assets)
   - [9. Import Decklists](#9-import-decklists)
+  - [10. Export Fonts](#10-export-fonts)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -200,6 +201,7 @@ Change avatars, sleeves, and more using the same interface.
 
 
 
+### 10. Export Fonts 
 
 ---
    If you want to export the font files in ttf format, run
