@@ -1,5 +1,5 @@
 FreeSimpleGUI==5.2.0
-UnityPy==1.22.4
+UnityPy==1.22.5
 typing-extensions==4.13.2
 opencv-python==4.11.0.86
 onnxruntime-directml==1.22.0
