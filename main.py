@@ -627,7 +627,7 @@ while True:
                                                 + ".png"
                                             )
                                             asset_viewer.open_image(
-                                                data.image, new_path
+                                                data, new_path
                                             )
                                             sg.popup_auto_close(
                                                 "Image saved successfully!",
