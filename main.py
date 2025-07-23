@@ -557,10 +557,10 @@ while True:
                                             index -= 1
                                             if index < 0:
                                                 index = len(data_list) - 1
-                                            data = data_list[index]
+                                            data = data_list[index].image
                                             if data is not None:
                                                 img_byte_arr = io.BytesIO()
-                                                data.image.save(
+                                                data.save(
                                                     img_byte_arr, format="PNG"
                                                 )
                                                 window4["-IMAGE-"].update(
@@ -570,10 +570,10 @@ while True:
                                             index += 1
                                             if index >= len(data_list):
                                                 index = 0
-                                            data = data_list[index]
+                                            data = data_list[index].image
                                             if data is not None:
                                                 img_byte_arr = io.BytesIO()
-                                                data.image.save(
+                                                data.save(
                                                     img_byte_arr, format="PNG"
                                                 )
                                                 window4["-IMAGE-"].update(
@@ -606,7 +606,7 @@ while True:
                                             img_byte_arr = io.BytesIO()
                                             resized, w, h = (
                                                 asset_viewer.set_aspect_ratio(
-                                                    data.image,
+                                                    data,
                                                     (
                                                         float(values["-AR-W-"]),
                                                         float(values["-AR-H-"]),
