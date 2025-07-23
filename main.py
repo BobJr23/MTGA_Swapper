@@ -587,7 +587,7 @@ while True:
                                             )
                                             if new != "":
                                                 asset_viewer.save_image(
-                                                    data,
+                                                    data_list[index],
                                                     new,
                                                     os.path.join(path, name),
                                                     env,
