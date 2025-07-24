@@ -457,7 +457,7 @@ while True:
                             ],
                             [sg.Text("Click on an image to view/edit full size")],
                             [sg.Button("Export all images", key="-EXPORT-")],
-                            [sg.Button("Export all 3D meshes", key="-EXPORTMESH-")]
+                            [sg.Button("Export all 3D meshes", key="-EXPORTMESH-")],
                             [
                                 sg.Column(
                                     gallery_column,
