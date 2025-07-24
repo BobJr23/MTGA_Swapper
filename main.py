@@ -457,6 +457,7 @@ while True:
                             ],
                             [sg.Text("Click on an image to view/edit full size")],
                             [sg.Button("Export all images", key="-EXPORT-")],
+                            [sg.Button("Export all 3D meshes", key="-EXPORTMESH-")]
                             [
                                 sg.Column(
                                     gallery_column,
@@ -495,9 +496,20 @@ while True:
                                     )
                                     asset_viewer.open_image(item.image, new_path)
                                 sg.popup_auto_close(
-                                    "All images exported successfully!",
+                                    f"All images exported to {save_dir}!",
                                     auto_close_duration=1,
                                 )
+                            if e_gallery == "-EXPORTMESH-":
+                                if not os.path.exists(save_dir):
+                                    os.makedirs(save_dir)
+                                c = asset_viewer.export_meshes(env, save_dir)
+                                                          
+                                                          
+                                sg.popup_auto_close(
+                                    f"{c} 3D meshes were found and exported to {save_dir}!",
+                                    auto_close_duration=1,
+                                )
+
                             for i in range(len(data_list)):
                                 if e_gallery == f"-GALLERY-IMG-{i}-":
                                     # Open the single image window with all options

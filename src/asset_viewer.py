@@ -82,6 +82,19 @@ def get_texture(env: UnityPy.Environment) -> list[UnityPy.classes.Texture2D]:
         reverse=True,
     )
 
+def export_meshes(env: UnityPy.Environment, path) -> int:
+    """Export all meshes from the Unity environment."""
+    counter = 0
+    for obj in env.objects:
+        if obj.type.name == "Mesh":
+            mesh = obj.read()
+            mesh_path = os.path.join(path, f"{mesh.m_Name}.obj")
+            with open(mesh_path, "wt",newline="") as f:
+                f.write(mesh.export())
+            counter += 1
+    return counter
+      
+    
 
 def get_card_textures(
     card, filename
