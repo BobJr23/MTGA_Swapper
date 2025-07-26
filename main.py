@@ -618,7 +618,7 @@ while True:
                                             img_byte_arr = io.BytesIO()
                                             resized, w, h = (
                                                 asset_viewer.set_aspect_ratio(
-                                                    data,
+                                                    data_list[index].image,
                                                     (
                                                         float(values["-AR-W-"]),
                                                         float(values["-AR-H-"]),
@@ -639,7 +639,7 @@ while True:
                                                 + ".png"
                                             )
                                             asset_viewer.open_image(
-                                                data, new_path
+                                                data_list[index].image, new_path
                                             )
                                             sg.popup_auto_close(
                                                 "Image saved successfully!",

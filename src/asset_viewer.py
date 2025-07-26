@@ -23,7 +23,7 @@ def shrink_to_monitor(image, target_width=1920, target_height=1080) -> Image.Ima
     width, height = image.size
 
     # Calculate the scaling factor
-    scale_factor = min(target_width / width, target_height / height)
+    scale_factor = min(target_width / width, target_height / height, 1)
 
     # Calculate new dimensions
     new_width = int(width * scale_factor)
