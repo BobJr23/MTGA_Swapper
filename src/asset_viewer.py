@@ -8,9 +8,9 @@ import io
 import os
 
 
-def no_alpha(image) -> Image.Image:
+def no_alpha(image, alpha=True) -> Image.Image:
     """Remove alpha channel from an image."""
-    if image.mode == "RGBA":
+    if alpha and image.mode == "RGBA":
         image = image.convert("RGB")
     return image
 
@@ -97,7 +97,7 @@ def export_meshes(env: UnityPy.Environment, path) -> int:
     
 
 def get_card_textures(
-    card, filename
+    card, filename,
 ) -> tuple[list[Image.Image] | None, list[UnityPy.classes.Texture2D] | None] | None:
     if card and filename:
         try:
@@ -133,17 +133,17 @@ def get_image_from_texture(texture) -> bytes | None:
     return None
 
 
-def open_image(data, path) -> Image.Image:
+def open_image(data, path, alpha=True) -> Image.Image:
     if type(data) == bytes:
         data = Image.open(io.BytesIO(data))
-    no_alpha(data).save(path)
+    no_alpha(data, alpha).save(path)
 
     return data
 
 
 def save_image(data, new_path, src, env) -> None:
 
-    data.image = no_alpha(Image.open(new_path))
+    data.image = Image.open(new_path)
     data.save()
     with open(src, "wb") as f:
         f.write(env.file.save())
