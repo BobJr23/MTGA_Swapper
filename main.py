@@ -552,7 +552,7 @@ while True:
                                             ],
                                             [
                                                 sg.Image(
-                                                    data=img_byte_arr.getvalue(),
+                                                    source=img_byte_arr.getvalue(),
                                                     key="-IMAGE-",
                                                 )
                                             ],
@@ -578,7 +578,7 @@ while True:
                                                     img_byte_arr, format="PNG"
                                                 )
                                                 window4["-IMAGE-"].update(
-                                                    data=img_byte_arr.getvalue()
+                                                    source=img_byte_arr.getvalue()
                                                 )
                                         if e == "-R-":
                                             index += 1
@@ -591,7 +591,7 @@ while True:
                                                     img_byte_arr, format="PNG"
                                                 )
                                                 window4["-IMAGE-"].update(
-                                                    data=img_byte_arr.getvalue()
+                                                    source=img_byte_arr.getvalue()
                                                 )
                                         if e == "-CI-":
                                             new = get_file(
@@ -606,7 +606,7 @@ while True:
                                                     os.path.join(path, name),
                                                     env,
                                                 )
-                                                window4["-IMAGE-"].update(filename=new)
+                                                window4["-IMAGE-"].update(source=new)
                                                 sg.popup_auto_close(
                                                     "Image changed successfully!",
                                                     auto_close_duration=1,
@@ -630,7 +630,7 @@ while True:
                                             resized.save(img_byte_arr, format="PNG")
 
                                             window4["-IMAGE-"].update(
-                                                data=img_byte_arr.getvalue()
+                                                source=img_byte_arr.getvalue()
                                             )
                                             data = img_byte_arr.getvalue()
 
@@ -641,7 +641,7 @@ while True:
                                             )
                                             data.save(img_byte_arr, format="PNG")
                                             window4["-IMAGE-"].update(
-                                                data=img_byte_arr.getvalue()
+                                                source=img_byte_arr.getvalue()
                                             )
                                             data = img_byte_arr.getvalue()
                                         if e == "-SAVE-":
@@ -831,7 +831,7 @@ while True:
                         ],
                         [
                             sg.Image(
-                                data=asset_viewer.get_image_from_texture(
+                                source=asset_viewer.get_image_from_texture(
                                     textures[index]
                                 ),
                                 key="-IMAGE-",
@@ -857,7 +857,7 @@ while True:
                             index = len(textures) - 1
 
                         window4["-IMAGE-"].update(
-                            data=asset_viewer.get_image_from_texture(textures[index])
+                            source=asset_viewer.get_image_from_texture(textures[index])
                         )
 
                         data = asset_viewer.get_image_from_texture(textures[index])
@@ -871,7 +871,7 @@ while True:
                                 os.path.join(path, prefixed),
                                 env,
                             )
-                            window4["-IMAGE-"].update(filename=new)
+                            window4["-IMAGE-"].update(source=new)
                             sg.popup_auto_close(
                                 "Image changed successfully!",
                                 auto_close_duration=1,
@@ -888,7 +888,7 @@ while True:
                             data_list[index].image, alpha=values["-RA-"]
                         )
                         data.save(img_byte_arr, format="PNG")
-                        window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
                         data = img_byte_arr.getvalue()
                     if e == "-SAVE-":
                         new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}.png"
@@ -905,7 +905,7 @@ while True:
                         shrunk = asset_viewer.shrink_to_monitor(upped)
                         shrunk.save(img_byte_arr, format="PNG")
 
-                        window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
                         new_arr = io.BytesIO()
                         upped.save(new_arr, format="PNG")
                         data = new_arr.getvalue()
@@ -929,7 +929,7 @@ while True:
                         )
                         resized.save(img_byte_arr, format="PNG")
 
-                        window4["-IMAGE-"].update(data=img_byte_arr.getvalue())
+                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
                         data = img_byte_arr.getvalue()
 
             else:
