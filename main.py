@@ -456,7 +456,13 @@ while True:
                                 )
                             ],
                             [sg.Text("Click on an image to view/edit full size")],
-                            [sg.Checkbox("Remove Alpha (recommended)", key="-RA-", default=True)],
+                            [
+                                sg.Checkbox(
+                                    "Remove Alpha (recommended)",
+                                    key="-RA-",
+                                    default=True,
+                                )
+                            ],
                             [sg.Button("Export all images", key="-EXPORT-")],
                             [sg.Button("Export all 3D meshes", key="-EXPORTMESH-")],
                             [
@@ -495,7 +501,11 @@ while True:
                                         + str(i)
                                         + ".png"
                                     )
-                                    asset_viewer.open_image(item.image, new_path, alpha=values_gallery["-RA-"])
+                                    asset_viewer.open_image(
+                                        item.image,
+                                        new_path,
+                                        alpha=values_gallery["-RA-"],
+                                    )
                                 sg.popup_auto_close(
                                     f"All images exported to {save_dir}!",
                                     auto_close_duration=1,
@@ -504,8 +514,7 @@ while True:
                                 if not os.path.exists(save_dir):
                                     os.makedirs(save_dir)
                                 c = asset_viewer.export_meshes(env, save_dir)
-                                                          
-                                                          
+
                                 sg.popup_auto_close(
                                     f"{c} 3D meshes were found and exported to {save_dir}!",
                                     auto_close_duration=1,
@@ -547,7 +556,11 @@ while True:
                                                     key="-AR-H-",
                                                     size=(3, 1),
                                                 ),
-                                                sg.Checkbox("Remove Alpha (recommended)", key="-RA-", default=True),
+                                                sg.Checkbox(
+                                                    "Remove Alpha (recommended)",
+                                                    key="-RA-",
+                                                    default=True,
+                                                ),
                                                 sg.Button("Save", key="-SAVE-"),
                                             ],
                                             [
@@ -574,9 +587,7 @@ while True:
                                             data = data_list[index].image
                                             if data is not None:
                                                 img_byte_arr = io.BytesIO()
-                                                data.save(
-                                                    img_byte_arr, format="PNG"
-                                                )
+                                                data.save(img_byte_arr, format="PNG")
                                                 window4["-IMAGE-"].update(
                                                     source=img_byte_arr.getvalue()
                                                 )
@@ -587,9 +598,7 @@ while True:
                                             data = data_list[index].image
                                             if data is not None:
                                                 img_byte_arr = io.BytesIO()
-                                                data.save(
-                                                    img_byte_arr, format="PNG"
-                                                )
+                                                data.save(img_byte_arr, format="PNG")
                                                 window4["-IMAGE-"].update(
                                                     source=img_byte_arr.getvalue()
                                                 )
@@ -620,7 +629,10 @@ while True:
                                             img_byte_arr = io.BytesIO()
                                             resized, w, h = (
                                                 asset_viewer.set_aspect_ratio(
-                                                    asset_viewer.no_alpha(data_list[index].image,alpha=values["-RA-"]),
+                                                    asset_viewer.no_alpha(
+                                                        data_list[index].image,
+                                                        alpha=values["-RA-"],
+                                                    ),
                                                     (
                                                         float(values["-AR-W-"]),
                                                         float(values["-AR-H-"]),
@@ -637,7 +649,8 @@ while True:
                                         if e == "-RA-":
                                             img_byte_arr = io.BytesIO()
                                             data = asset_viewer.no_alpha(
-                                                data_list[index].image, alpha=values["-RA-"]
+                                                data_list[index].image,
+                                                alpha=values["-RA-"],
                                             )
                                             data.save(img_byte_arr, format="PNG")
                                             window4["-IMAGE-"].update(
@@ -652,7 +665,9 @@ while True:
                                                 + ".png"
                                             )
                                             asset_viewer.open_image(
-                                                data_list[index].image, new_path, alpha=values["-RA-"]
+                                                data_list[index].image,
+                                                new_path,
+                                                alpha=values["-RA-"],
                                             )
                                             sg.popup_auto_close(
                                                 "Image saved successfully!",
@@ -777,6 +792,8 @@ while True:
         current_card = Card(
             *values["-LIST-"][0].split(),
         )
+        if len(current_card.art_id) < 6:
+            current_card.art_id = current_card.art_id.zfill(6)
         path = os.path.dirname(filename)[0:-3] + "AssetBundle"
 
         try:
@@ -892,7 +909,9 @@ while True:
                         data = img_byte_arr.getvalue()
                     if e == "-SAVE-":
                         new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}.png"
-                        asset_viewer.open_image(data_list[index].image, new_path, alpha=values["-RA-"])
+                        asset_viewer.open_image(
+                            data_list[index].image, new_path, alpha=values["-RA-"]
+                        )
                         sg.popup_auto_close(
                             "Image saved successfully!",
                             auto_close_duration=1,
