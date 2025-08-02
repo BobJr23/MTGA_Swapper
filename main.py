@@ -165,10 +165,13 @@ layout = [
                         ),
                         key="-Sleeve-",
                         disabled=filename is None,
-                        size=(35, 1),
-                        expand_x=True,
-                        pad=(5, 5),
-                    )
+                        size=(53, 1),
+                        # expand_x=True,
+                        # pad=(5, 5),
+                    ),
+                    sg.Button(
+                        "Export Fonts", key="-EXPORTFONTS-", size=(15, 1), pad=(5, 5)
+                    ),
                 ],
                 [
                     sg.Input(
@@ -330,6 +333,18 @@ while True:
         window["-UD-"].update(value=True)
         event = "-UD-"
         values["-UD-"] = True
+
+    if event == "-EXPORTFONTS-":
+        font_path = askopenfilename(
+            title="Select file that starts with 'Fonts_' in AssetBundle Folder"
+        )
+        font_save_path = askdirectory(
+            initialdir=os.path.dirname(font_path),
+            title="Select folder to save fonts",
+        )
+        if font_path:
+            env = asset_viewer.load(font_path)
+            fonts = asset_viewer.get_fonts(env, font_save_path)
 
     if event == "-UD-":
         use_decklist = values["-UD-"]
