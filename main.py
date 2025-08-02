@@ -1,6 +1,7 @@
 import src.sql_editor as sql_editor
 import src.asset_viewer as asset_viewer
 from src.upscaler import upscaling, resource_path
+from random import randint
 
 if upscaling:
     from src.upscaler import upscale_image
@@ -609,12 +610,28 @@ while True:
                                                 "*.png",
                                             )
                                             if new != "":
+
+                                                data = asset_viewer.get_texture(env)[
+                                                    index
+                                                ]
                                                 asset_viewer.save_image(
-                                                    data_list[index],
+                                                    data,
                                                     new,
                                                     os.path.join(path, name),
                                                     env,
                                                 )
+                                                new_path = (
+                                                    os.path.join(save_dir, name)
+                                                    + "-"
+                                                    + str(index)
+                                                    + f"_backup{randint(1, 1000)}.png"
+                                                )
+                                                asset_viewer.open_image(
+                                                    data_list[index].image,
+                                                    new_path,
+                                                    alpha=values["-RA-"],
+                                                )
+
                                                 window4["-IMAGE-"].update(source=new)
                                                 sg.popup_auto_close(
                                                     "Image changed successfully!",
@@ -881,12 +898,21 @@ while True:
 
                     if e == "-CI-":
                         new = get_file("Select your new image", "image files", "*.png")
-                        if new != "":
+                        if new not in ("", None):
+                            # save a backup of the original image
+
+                            print("backup saved")
+                            # save the new image
+                            data = asset_viewer.get_texture(env)[index]
                             asset_viewer.save_image(
-                                data_list[index],
+                                data,
                                 new,
                                 os.path.join(path, prefixed),
                                 env,
+                            )
+                            new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}_backup{randint(1, 1000)}.png"
+                            asset_viewer.open_image(
+                                data_list[index].image, new_path, alpha=values["-RA-"]
                             )
                             window4["-IMAGE-"].update(source=new)
                             sg.popup_auto_close(
