@@ -677,18 +677,24 @@ while True:
                                                 )
                                         if e == "-AR-":
                                             img_byte_arr = io.BytesIO()
-                                            resized, w, h = (
-                                                asset_viewer.set_aspect_ratio(
-                                                    asset_viewer.no_alpha(
-                                                        data_list[index].image,
-                                                        alpha=values["-RA-"],
-                                                    ),
-                                                    (
-                                                        float(values["-AR-W-"]),
-                                                        float(values["-AR-H-"]),
-                                                    ),
+                                            try:
+                                                resized, w, h = (
+                                                    asset_viewer.set_aspect_ratio(
+                                                        asset_viewer.no_alpha(
+                                                            data_list[index].image,
+                                                            alpha=values["-RA-"],
+                                                        ),
+                                                        (
+                                                            float(values["-AR-W-"]),
+                                                            float(values["-AR-H-"]),
+                                                        ),
+                                                    )
                                                 )
-                                            )
+                                            except ValueError:
+                                                sg.popup_error(
+                                                    "Invalid aspect ratio values, edit them before applying",
+                                                    auto_close_duration=3,
+                                                )
                                             resized.save(img_byte_arr, format="PNG")
 
                                             window4["-IMAGE-"].update(
@@ -998,13 +1004,20 @@ while True:
                     if e == "-AR-":
                         img_byte_arr = io.BytesIO()
                         print(type(data))
-                        resized, w, h = asset_viewer.set_aspect_ratio(
-                            data,
-                            (
-                                float(values["-AR-W-"]),
-                                float(values["-AR-H-"]),
-                            ),
-                        )
+                        try:
+                            resized, w, h = asset_viewer.set_aspect_ratio(
+                                data,
+                                (
+                                    float(values["-AR-W-"]),
+                                    float(values["-AR-H-"]),
+                                ),
+                            )
+                        except ValueError:
+                            sg.popup_error(
+                                "Invalid aspect ratio values, edit them before applying",
+                                auto_close_duration=3,
+                            )
+                            continue
                         resized.save(img_byte_arr, format="PNG")
 
                         window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
