@@ -3,3 +3,4 @@ UnityPy==1.22.5
 typing-extensions==4.13.2
 opencv-python==4.11.0.86
 onnxruntime-directml==1.22.0
+etcpak @ git+https://github.com/BobJr23/etcpak.git
