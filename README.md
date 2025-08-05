@@ -204,11 +204,7 @@ Change avatars, sleeves, and more using the same interface.
 ### 10. Export Fonts 
 
 ---
-   If you want to export the font files in ttf format, run
-   ```bash
-   python asset_viewer.py
-   ```
-
+   If you want to export the font files in ttf format, there is now a button in the App's main menu
 ---
 
 
