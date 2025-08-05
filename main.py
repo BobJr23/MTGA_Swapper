@@ -648,6 +648,24 @@ while True:
                                                 )
 
                                                 window4["-IMAGE-"].update(source=new)
+                                                img_byte_arr = io.BytesIO()
+                                                new_img = asset_viewer.Image.open(new)
+                                                new_img.save(img_byte_arr, format="PNG")
+                                                resized_img, _, _ = (
+                                                    asset_viewer.set_aspect_ratio(
+                                                        new_img, (200, 200), ratio=False
+                                                    )
+                                                )
+                                                resized_bytes = io.BytesIO()
+                                                resized_img.save(
+                                                    resized_bytes, format="PNG"
+                                                )
+                                                window_gallery[
+                                                    f"-GALLERY-IMG-{index}-"
+                                                ].update(
+                                                    image_data=resized_bytes.getvalue()
+                                                )
+                                                data_list[index].image = new_img
                                                 sg.popup_auto_close(
                                                     "Image changed successfully!",
                                                     auto_close_duration=1,

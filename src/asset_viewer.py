@@ -36,7 +36,7 @@ def shrink_to_monitor(image, target_width=1920, target_height=1080) -> Image.Ima
 
 
 def set_aspect_ratio(
-    image, target_aspect_ratio=(11, 8), ratio=True
+    image: bytes | Image.Image, target_aspect_ratio=(11, 8), ratio=True
 ) -> tuple[Image.Image, int, int]:
     if type(image) == bytes:
         image = Image.open(io.BytesIO(image))
@@ -82,6 +82,7 @@ def get_texture(env: UnityPy.Environment) -> list[UnityPy.classes.Texture2D]:
         reverse=True,
     )
 
+
 def export_meshes(env: UnityPy.Environment, path) -> int:
     """Export all meshes from the Unity environment."""
     counter = 0
@@ -89,15 +90,15 @@ def export_meshes(env: UnityPy.Environment, path) -> int:
         if obj.type.name == "Mesh":
             mesh = obj.read()
             mesh_path = os.path.join(path, f"{mesh.m_Name}.obj")
-            with open(mesh_path, "wt",newline="") as f:
+            with open(mesh_path, "wt", newline="") as f:
                 f.write(mesh.export())
             counter += 1
     return counter
-      
-    
+
 
 def get_card_textures(
-    card, filename,
+    card,
+    filename,
 ) -> tuple[list[Image.Image] | None, list[UnityPy.classes.Texture2D] | None] | None:
     if card and filename:
         try:
