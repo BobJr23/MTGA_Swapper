@@ -24,6 +24,7 @@ class MTGACard:
         self.art_type = art_type
         self.grp_id = grp_id
         self.art_id = art_id
+        self.alternates = []
         self.image = None
 
     def __str__(self) -> str:

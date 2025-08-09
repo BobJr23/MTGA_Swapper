@@ -65,6 +65,7 @@ database_file_path = None
 all_cards_formatted = ["Select a database first"]
 displayed_cards = ["Select a database first"]
 image_save_directory = None
+is_alternate = False
 
 # Load configuration from file or initialize with defaults
 if (
@@ -110,11 +111,11 @@ if (
             END AS Order_Title,
             c1.ExpansionCode,
             c1.ArtSize,
-            c1.GrpID,
-            c1.ArtID
+            c1.GrpId,
+            c1.ArtId
             FROM Cards c1
             LEFT JOIN Cards c2
-            ON c1.LinkedFaceGrpIds = c2.GrpID
+            ON c1.LinkedFaceGrpIds = c2.GrpId
             AND c2.Order_Title IS NOT NULL
             WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
         """
@@ -1062,6 +1063,7 @@ while True:
                 and second_card_to_swap
             ):
                 # Perform the actual card swap in the database
+                print(first_card_to_swap.grp_id, second_card_to_swap.grp_id)
                 database_manager.swap_card_group_ids(
                     first_card_to_swap.grp_id,
                     second_card_to_swap.grp_id,
@@ -1075,10 +1077,65 @@ while True:
     # Handle card selection from the list
     if event == "-CARD_LIST-" and values["-CARD_LIST-"]:
         # Create card object from selected list item
+
         selected_card_data = MTGACard(
             *values["-CARD_LIST-"][0].split(),
         )
+        if selected_card_data.name not in (
+            "island",
+            "forest",
+            "mountain",
+            "plains",
+            "swamp",
+        ):
+            database_cursor.execute(
+                """
+                SELECT TitleId
+                FROM Cards
+                WHERE GrpId = ?
+            """,
+                (selected_card_data.grp_id,),
+            )
+            row = database_cursor.fetchone()
 
+            if row is None:
+                print("Row not found.")
+            else:
+                title_id = row[0]
+
+            alternates = database_cursor.execute(
+                """
+                    SELECT 
+                        ExpansionCode,
+                        ArtSize,
+                        GrpId,
+                        ArtId
+                    FROM Cards
+                    WHERE 
+                        TitleId = ?
+                        AND ArtId != ?
+                """,
+                (title_id, selected_card_data.art_id),
+            ).fetchall()
+
+            alternates = [MTGACard(selected_card_data.name, *row) for row in alternates]
+
+            alternate_display = [
+                selected_card_data.name + " (" + card.set_code + ") - alternate"
+                for card in alternates
+            ]
+            alternates.insert(0, selected_card_data)
+            alternate_display.insert(
+                0,
+                selected_card_data.name
+                + " ("
+                + selected_card_data.set_code
+                + ") - selected",
+            )
+
+        else:
+            # Handle case where selected card is a basic land
+            alternates = []
         # Ensure art_id is properly formatted (6 digits with leading zeros)
         if len(selected_card_data.art_id) < 6:
             selected_card_data.art_id = selected_card_data.art_id.zfill(6)
@@ -1143,6 +1200,15 @@ while True:
                         sg.Button("Set to Swap 1", key="-SET_SWAP_1-"),
                         sg.Button("Set to Swap 2", key="-SET_SWAP_2-"),
                         sg.Button("Adjust style tags", key="-ADJUST_STYLE_TAGS-"),
+                        sg.Combo(
+                            values=alternate_display,
+                            default_value=(
+                                alternate_display[0] if alternate_display else ""
+                            ),
+                            key="-SEARCH_ALTERNATES-",
+                            readonly=True,
+                            enable_events=True,
+                        ),
                         sg.Button("Set aspect ratio to", key="-SET_ASPECT_RATIO-"),
                         sg.Input(
                             "3" if selected_card_data.art_type == "1" else "11",
@@ -1199,12 +1265,12 @@ while True:
                             texture_index = len(card_textures) - 1
                         1070957949
                         display_texture_bytes = convert_texture_to_bytes(
-                            card_textures[texture_index]
+                            image_data_list[texture_index]
                         )
                         card_editor_window["-CARD_IMAGE-"].update(
                             source=display_texture_bytes
                         )
-                        selected_card_data.image = card_textures[texture_index].image
+                        selected_card_data.image = image_data_list[texture_index]
 
                     if editor_event == "-ADJUST_STYLE_TAGS-":
                         current_tags = database_cursor.execute(
@@ -1227,6 +1293,69 @@ while True:
                                 (new_tag, selected_card_data.grp_id),
                             )
                             database_connection.commit()
+
+                    if editor_event == "-SEARCH_ALTERNATES-":
+                        selected_card_data = (
+                            alternates[
+                                alternate_display.index(
+                                    editor_values["-SEARCH_ALTERNATES-"]
+                                )
+                            ]
+                            if editor_values["-SEARCH_ALTERNATES-"] in alternate_display
+                            else False
+                        )
+
+                        asset_bundle_directory = (
+                            os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+                        )
+
+                        try:
+                            # Find the asset bundle file for this specific card
+                            matching_bundle_files = [
+                                bundle_file
+                                for bundle_file in os.listdir(asset_bundle_directory)
+                                if bundle_file.startswith(
+                                    str(selected_card_data.art_id)
+                                )
+                                and bundle_file.endswith(".mtga")
+                            ][0]
+
+                            # Load the Unity asset bundle
+                            unity_environment = load_unity_bundle(
+                                os.path.join(
+                                    asset_bundle_directory, matching_bundle_files
+                                )
+                            )
+                            texture_index = 0
+
+                            # Get card textures and process them for display
+                            image_data_list, texture_data_list = get_card_texture_data(
+                                selected_card_data,
+                                database_file_path,
+                            )
+
+                            if texture_data_list:
+                                card_textures = texture_data_list
+                                display_texture_bytes = convert_texture_to_bytes(
+                                    image_data_list[texture_index]
+                                )
+
+                                texture_width, texture_height = texture_data_list[
+                                    texture_index
+                                ].image.size
+                            else:
+                                # Handle case where no textures are found
+                                card_textures = None
+                                display_texture_bytes = None
+                                sg.popup_error("No textures found for selected card!")
+                                continue
+                            selected_card_data.image = image_data_list[0]
+                        except:
+                            sg.popup_error("Failed to load card image!")
+                        selected_card_data.image = image_data_list[0]
+                        card_editor_window["-CARD_IMAGE-"].update(
+                            source=convert_texture_to_bytes(selected_card_data.image)
+                        )
 
                     # Handle image replacement
                     if editor_event == "-CHANGE_IMAGE-":
@@ -1355,8 +1484,10 @@ while True:
             else:
                 sg.popup_error("Invalid texture file", auto_close_duration=1)
 
-        except IndexError:
-            sg.popup_error("Card not working at the moment", auto_close_duration=2)
+        except IndexError as e:
+            sg.popup_error(
+                "Card not working at the moment" + str(e), auto_close_duration=2
+            )
             continue
 
 # Close the main window when the event loop ends
