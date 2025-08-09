@@ -1,54 +1,98 @@
+# Database management module for MTGA card database operations
+# Handles SQLite operations for card swapping and data retrieval
+
 import sqlite3
+from typing import List, Tuple
 from tkinter import Tk  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename, askdirectory
 
 
-def swap_values(value1, value2, cur, con):
+def swap_card_group_ids(
+    first_grp_id: str,
+    second_grp_id: str,
+    database_cursor: sqlite3.Cursor,
+    database_connection: sqlite3.Connection,
+) -> None:
+    """
+    Swap the GrpId values between two cards in the database.
+    Uses a temporary value (0 and 1) to avoid constraint conflicts.
+
+    Args:
+        first_grp_id: Group ID of the first card to swap
+        second_grp_id: Group ID of the second card to swap
+        database_cursor: SQLite database cursor
+        database_connection: SQLite database connection
+    """
     try:
-        cur.executemany(
+        # First pass: Set cards to temporary values to avoid conflicts
+        database_cursor.executemany(
             """
         UPDATE Cards
         SET GrpId = ? 
         WHERE GrpId = ?
         
         """,
-            [(0, value1), (1, value2)],
+            [(0, first_grp_id), (1, second_grp_id)],
         )
-        cur.executemany(
+
+        # Second pass: Set cards to their final swapped values
+        database_cursor.executemany(
             """
         UPDATE Cards
         SET GrpId = ? 
         WHERE GrpId = ?
         
         """,
-            [(value2, 0), (value1, 1)],
+            [(second_grp_id, 0), (first_grp_id, 1)],
         )
     except sqlite3.OperationalError:
         print("You used the wrong file, relaunch this program and try again")
         exit()
-    con.commit()
+    database_connection.commit()
 
 
-def get_details_from_name(value, cur):
-    res = cur.execute(
-        f"SELECT GrpID, ArtId, ExpansionCode FROM Cards WHERE Order_Title='{value}'"
+def get_card_details_by_name(
+    card_name: str, database_cursor: sqlite3.Cursor
+) -> List[Tuple]:
+    """
+    Retrieve card details (GrpID, ArtId, ExpansionCode) by card name.
+
+    Args:
+        card_name: Name of the card to search for
+        database_cursor: SQLite database cursor
+
+    Returns:
+        List of tuples containing card details
+    """
+    query_result = database_cursor.execute(
+        f"SELECT GrpID, ArtId, ExpansionCode FROM Cards WHERE Order_Title='{card_name}'"
     )
 
-    return res.fetchall()
+    return query_result.fetchall()
 
 
-def main(file):
+def create_database_connection(
+    database_file_path: str,
+) -> Tuple[sqlite3.Cursor, sqlite3.Connection, str]:
+    """
+    Create a connection to the MTGA SQLite database.
 
-    con = sqlite3.connect(file)
+    Args:
+        database_file_path: Path to the .mtga database file
 
-    cur = con.cursor()
+    Returns:
+        Tuple of (cursor, connection, file_path)
+    """
+    database_connection = sqlite3.connect(database_file_path)
+    database_cursor = database_connection.cursor()
 
-    return cur, con, file
+    return database_cursor, database_connection, database_file_path
 
 
+# Debug/testing code (commented out for production)
 # if __name__ == "__main__":
-#     cur, con, f = main()
+#     cur, con, f = create_database_connection()
 #     name = input("enter a card name to find grp id\n > ")
-#     n = get_details_from_name(name.lower(), cur)
+#     n = get_card_details_by_name(name.lower(), cur)
 #     for x in n:
 #         print(x)

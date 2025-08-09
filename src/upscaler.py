@@ -1,79 +1,119 @@
+# Image upscaling module using ONNX models
+# Handles both ESRGAN 4x and 2x upscaling based on image dimensions
+
+import os
+import sys
+from typing import Optional, Union
+import io
+
 try:
     import onnxruntime as ort
     import numpy as np
     import cv2
-
     from PIL import Image
-    import os, sys
 
-    upscaling = True
+    # Flag to indicate if upscaling functionality is available
+    is_upscaling_available = True
 except ImportError as e:
     Image = None
+    np = None
     print(f"Some upscaling packages not installed.")
-    upscaling = False
+    is_upscaling_available = False
 
 
-def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and PyInstaller"""
+def get_resource_path(relative_path: str) -> str:
+    """
+    Get absolute path to resource, works for both development and PyInstaller builds.
+
+    Args:
+        relative_path: Path relative to the application directory
+
+    Returns:
+        Absolute path to the resource file
+    """
     try:
-        base_path = sys._MEIPASS  # Only exists when bundled
+        # Only exists when bundled with PyInstaller
+        base_path = sys._MEIPASS
     except AttributeError:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
 
-# Choose the best available execution provider
-if upscaling:
+# Initialize upscaling models if dependencies are available
+if is_upscaling_available:
 
-    # Preprocess input image
-    def preprocess(img_bytes) -> np.ndarray:
-        np_arr = np.frombuffer(img_bytes.read(), np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
-        img = np.transpose(img, (2, 0, 1))  # HWC to CHW
-        img = np.expand_dims(img, axis=0)  # Add batch dimension
-        return img
-
-    def upscale_image(image_bytes, w, h) -> Image.Image:
+    def preprocess_image_for_upscaling(image_bytes: io.BytesIO):
         """
-        Upscale an image using ONNX model.
+        Preprocess input image bytes for ONNX model inference.
 
-        :param image_bytes: Path to the input image.
-        :return: Upscaled PIL image.
+        Args:
+            image_bytes: Raw image data as BytesIO object
+
+        Returns:
+            Preprocessed numpy array ready for model input
         """
-        input_tensor = preprocess(image_bytes)
+        numpy_array = np.frombuffer(image_bytes.read(), np.uint8)
+        image = cv2.imdecode(numpy_array, cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = image.astype(np.float32) / 255.0  # Normalize to [0, 1]
+        image = np.transpose(image, (2, 0, 1))  # HWC to CHW format
+        image = np.expand_dims(image, axis=0)  # Add batch dimension
+        return image
 
-        if w + h <= 1024:
-            session = session4x
+    def upscale_card_image(image_bytes: io.BytesIO, width: int, height: int):
+        """
+        Upscale an image using appropriate ONNX model based on dimensions.
+        Uses 4x model for smaller images, 2x model for larger ones.
+
+        Args:
+            image_bytes: Input image as BytesIO object
+            width: Original image width
+            height: Original image height
+
+        Returns:
+            Upscaled PIL Image object
+        """
+        input_tensor = preprocess_image_for_upscaling(image_bytes)
+
+        # Choose model based on image size to prevent memory issues
+        if width + height <= 1024:
+            upscaling_session = onnx_session_4x
         else:
-            session = session2x
-        output = session.run(
-            [session.get_outputs()[0].name],
-            {session.get_inputs()[0].name: input_tensor},
+            upscaling_session = onnx_session_2x
+
+        # Run inference
+        model_output = upscaling_session.run(
+            [upscaling_session.get_outputs()[0].name],
+            {upscaling_session.get_inputs()[0].name: input_tensor},
         )[0]
 
-        # Post-process and return
-        output_img = output.squeeze(0).transpose(1, 2, 0)  # CHW to HWC
-        output_img = np.clip(output_img * 255.0, 0, 255).astype(np.uint8)
+        # Post-process the output
+        output_image = model_output.squeeze(0).transpose(1, 2, 0)  # CHW to HWC
+        output_image = np.clip(output_image * 255.0, 0, 255).astype(np.uint8)
 
-        return Image.fromarray(output_img)
+        return Image.fromarray(output_image)
 
-    print("Loading ONNX models...")
-    available_providers = ort.get_available_providers()
+    # Initialize ONNX inference sessions
+    print("Loading ONNX upscaling models...")
+    available_execution_providers = ort.get_available_providers()
 
-    if "CUDAExecutionProvider" in available_providers:
-        providers = ["CUDAExecutionProvider"]
-    elif "DmlExecutionProvider" in available_providers:  # DirectML for AMD
-        providers = ["DmlExecutionProvider"]
+    # Select best available execution provider for hardware acceleration
+    if "CUDAExecutionProvider" in available_execution_providers:
+        execution_providers = ["CUDAExecutionProvider"]
+        print("Using CUDA acceleration for upscaling")
+    elif "DmlExecutionProvider" in available_execution_providers:  # DirectML for AMD
+        execution_providers = ["DmlExecutionProvider"]
+        print("Using DirectML acceleration for upscaling")
     else:
-        providers = ["CPUExecutionProvider"]
+        execution_providers = ["CPUExecutionProvider"]
+        print("Using CPU for upscaling")
 
-    session4x = ort.InferenceSession(
-        resource_path("modelscsr.onnx"), providers=providers
+    # Load the upscaling models
+    onnx_session_4x = ort.InferenceSession(
+        get_resource_path("modelscsr.onnx"), providers=execution_providers
     )
-    session2x = ort.InferenceSession(
-        resource_path("modelesrgan2.onnx"), providers=providers
+    onnx_session_2x = ort.InferenceSession(
+        get_resource_path("modelesrgan2.onnx"), providers=execution_providers
     )
 
-    print("ONNX models loaded successfully.")
+    print("ONNX upscaling models loaded successfully.")

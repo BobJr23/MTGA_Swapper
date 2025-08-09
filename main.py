@@ -1,73 +1,72 @@
-import src.sql_editor as sql_editor
-import src.asset_viewer as asset_viewer
-from src.upscaler import upscaling, resource_path
+# MTGA Swapper - A tool for swapping Magic: The Gathering Arena card arts
+# Main application module containing the GUI and core functionality
+
+import src.sql_editor as database_manager
+from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
 
-if upscaling:
-    from src.upscaler import upscale_image
+# Import upscaling functionality only if dependencies are available
+if is_upscaling_available:
+    from src.upscaler import upscale_card_image
 
-from src.decklist import create_decklist_window
+from src.decklist import create_decklist_import_window
+from src.card_models import MTGACard, format_card_display, sort_cards_by_attribute
+from src.gui_utils import (
+    open_file_dialog,
+    open_directory_dialog,
+    convert_pil_image_to_bytes,
+)
+from src.image_utils import (
+    remove_alpha_channel,
+    resize_image_to_screen,
+    adjust_image_aspect_ratio,
+    resize_image_for_gallery,
+)
+from src.unity_bundle import (
+    load_unity_bundle,
+    extract_fonts,
+    get_card_texture_data,
+    convert_texture_to_bytes,
+    save_image_to_file,
+    extract_textures_from_bundle,
+    replace_texture_in_bundle,
+    configure_unity_version,
+    export_3d_meshes,
+)
+
 import FreeSimpleGUI as sg
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from pathlib import Path
+from PIL import Image
 import os
 import io
+from typing import Dict, Any, Optional, List, Union, Tuple
 
+# Set GUI theme for dark appearance
 sg.theme("DarkBlue3")
 
 
-class Card:
-    def __init__(self, name, set_code, art_type, grp_id, art_id):
-        self.name = name
-        self.set_code = set_code
-        self.art_type = art_type
-        self.grp_id = grp_id
-        self.art_id = art_id
+# Initialize configuration directory and file
+user_config_directory = Path.home() / ".mtga_swapper"
+user_config_directory.mkdir(exist_ok=True)
+user_config_file_path = user_config_directory / "config.json"
 
-    def __str__(self):
-        return self.name
+# Create default config file if it doesn't exist
+if not user_config_file_path.exists():
+    with open(get_resource_path("config.json"), "r") as source_config:
+        with open(user_config_file_path, "w") as destination_config:
+            destination_config.write(source_config.read())
 
+# Initialize variables for database connection
+database_cursor = None
+database_connection = None
+database_file_path = None
+all_cards_formatted = ["Select a database first"]
+displayed_cards = ["Select a database first"]
+image_save_directory = None
 
-def format_card(card_tuple):
-
-    name, set_code, art_type, grp_id, art_id = card_tuple
-    return f"{name:<30} {set_code:<10} {art_type:<9} {grp_id:<8} {art_id:<8}"
-
-
-def sort_cards(cards, key):
-    index_map = {"Name": 0, "Set": 1, "ArtType": 2, "GrpID": 3, "ArtID": 4}
-    return sorted(cards, key=lambda x: x.split()[index_map[key]])
-
-
-def get_file(title, desc, types):
-    Tk().withdraw()
-    file = askopenfilename(filetypes=[(desc, types)], title=title)
-    return Path(file).as_posix() if file else None
-
-
-def get_dir(title):
-    Tk().withdraw()
-    return Path(askdirectory(title=title)).as_posix()
-
-
-def pil_to_bytes(img):
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    return img_byte_arr.getvalue()
-
-
-config_dir = Path.home() / ".mtga_swapper"
-config_dir.mkdir(exist_ok=True)
-config_path = config_dir / "config.json"
-
-if not config_path.exists():
-    with open(resource_path("config.json"), "r") as src:
-        with open(config_path, "w") as dst:
-            dst.write(src.read())
-
-# Load config
-
+# Load configuration from file or initialize with defaults
 if (
     sg.popup_yes_no(
         "Do you want to load from config file?",
@@ -75,20 +74,34 @@ if (
     )
     == "Yes"
 ):
+    # Load existing configuration
+    with open(user_config_file_path, "r") as config_file:
+        try:
+            user_config = sg.json.loads(config_file.read())
+        except sg.json.JSONDecodeError:
+            sg.popup_error("Error loading config file", auto_close_duration=3)
+            user_config = {"SavePath": "", "DatabasePath": ""}
+        image_save_directory = (
+            user_config["SavePath"] if user_config["SavePath"] else None
+        )
 
-    with open(config_path, "r") as f:
-        config = sg.json.loads(f.read())
-        save_dir = config["SavePath"] if config["SavePath"] else None
-        if config["DatabasePath"] != "" and os.path.exists(config["DatabasePath"]):
-            filename = config["DatabasePath"]
+        # Validate and load database if path exists
+        if user_config["DatabasePath"] != "" and os.path.exists(
+            user_config["DatabasePath"]
+        ):
+            database_file_path = user_config["DatabasePath"]
             try:
-                cur, con, filename = sql_editor.main(filename)
+                # Initialize database connection
+                database_cursor, database_connection, database_file_path = (
+                    database_manager.create_database_connection(database_file_path)
+                )
 
-                base_cards = list(
+                # Query all cards from database with proper formatting
+                all_cards_formatted = list(
                     map(
-                        format_card,
+                        format_card_display,
                         sorted(
-                            cur.execute(
+                            database_cursor.execute(
                                 """
             SELECT 
             CASE 
@@ -110,38 +123,42 @@ if (
                     )
                 )
             except (
-                sql_editor.sqlite3.OperationalError,
-                sql_editor.sqlite3.DatabaseError,
+                database_manager.sqlite3.OperationalError,
+                database_manager.sqlite3.DatabaseError,
                 TypeError,
             ):
                 sg.popup_error(
                     "Missing or incorrect database selected", auto_close_duration=3
                 )
-                filename = None
-                base_cards = ["Select a database first"]
-            cards = base_cards
-            asset_viewer.set_unity_version(filename, "2022.3.42f1")
+                database_file_path = None
+                all_cards_formatted = ["Select a database first"]
+
+            displayed_cards = all_cards_formatted
+            configure_unity_version(database_file_path, "2022.3.42f1")
         else:
-            filename = None
-            base_cards = ["Select a database first"]
-            cards = ["Select a database first"]
+            database_file_path = None
+            all_cards_formatted = ["Select a database first"]
+            displayed_cards = ["Select a database first"]
             sg.popup_error(
                 "Invalid or missing database file. Please select a valid .mtga file.",
                 auto_close_duration=3,
             )
 else:
-    config = {"SavePath": None, "DatabasePath": None}
-    save_dir = None
-    filename = None
-    base_cards = ["Select a database first"]
-    cards = ["Select a database first"]
+    # Initialize with empty configuration
+    user_config = {"SavePath": None, "DatabasePath": None}
+    image_save_directory = None
+    database_file_path = None
+    all_cards_formatted = ["Select a database first"]
+    displayed_cards = ["Select a database first"]
 
-swap1, swap2 = None, None
-current_input = ""
-use_decklist = False
-cards_from_deck = None
+# Initialize card swap variables and deck filtering state
+first_card_to_swap, second_card_to_swap = None, None
+current_search_input = ""
+is_using_decklist_filter = False
+cards_from_imported_deck = None
 
-layout = [
+# Create main GUI layout
+main_window_layout = [
     [
         sg.Frame(
             "",
@@ -149,34 +166,35 @@ layout = [
                 [
                     sg.Button(
                         "Select database file & image save location",
-                        key="-DB-",
+                        key="-SELECT_DATABASE-",
                         size=(35, 1),
                         pad=(5, 5),
                     ),
-                    sg.Button("Swap Arts", key="-SA-", size=(15, 1), pad=(5, 5)),
-                    sg.Button("Load Decklist", key="-DL-", size=(15, 1), pad=(5, 5)),
+                    sg.Button("Swap Arts", key="-SWAP_ARTS-", size=(15, 1), pad=(5, 5)),
+                    sg.Button(
+                        "Load Decklist", key="-LOAD_DECKLIST-", size=(15, 1), pad=(5, 5)
+                    ),
                 ],
                 [
                     sg.Button(
                         (
                             "Select database and image save location before changing sleeves and avatars"
-                            if filename is None
+                            if database_file_path is None
                             else "Change Sleeves, Avatars, etc."
                         ),
-                        key="-Sleeve-",
-                        disabled=filename is None,
+                        key="-CHANGE_ASSETS-",
+                        disabled=database_file_path is None,
                         size=(53, 1),
-                        # expand_x=True,
-                        # pad=(5, 5),
                     ),
                     sg.Button(
-                        "Export Fonts", key="-EXPORTFONTS-", size=(15, 1), pad=(5, 5)
+                        "Export Fonts", key="-EXPORT_FONTS-", size=(15, 1), pad=(5, 5)
                     ),
                 ],
                 [
                     sg.Input(
-                        "Database: " + (filename if filename else "None"),
-                        key="DB-Display",
+                        "Database: "
+                        + (database_file_path if database_file_path else "None"),
+                        key="DATABASE_DISPLAY",
                         readonly=True,
                         font=("Segoe UI", 8),
                         size=(80, 1),
@@ -184,8 +202,9 @@ layout = [
                 ],
                 [
                     sg.Input(
-                        "Image Save Location: " + (save_dir if save_dir else "None"),
-                        key="IMG-Display",
+                        "Image Save Location: "
+                        + (image_save_directory if image_save_directory else "None"),
+                        key="IMAGE_SAVE_DISPLAY",
                         readonly=True,
                         font=("Segoe UI", 8),
                         size=(80, 1),
@@ -207,12 +226,15 @@ layout = [
                 ],
                 [
                     sg.Input(
-                        size=(40, 1), enable_events=True, key="-INPUT-", pad=(5, 5)
+                        size=(40, 1),
+                        enable_events=True,
+                        key="-SEARCH_INPUT-",
+                        pad=(5, 5),
                     ),
                     sg.Checkbox(
                         "Use Decklist",
-                        key="-UD-",
-                        default=use_decklist,
+                        key="-USE_DECKLIST-",
+                        default=is_using_decklist_filter,
                         enable_events=True,
                     ),
                 ],
@@ -221,7 +243,7 @@ layout = [
                     sg.Combo(
                         ["Name", "Set", "ArtType", "GrpID", "ArtID"],
                         default_value="Name",
-                        key="-SORTBY-",
+                        key="-SORT_BY-",
                         enable_events=True,
                         readonly=True,
                         size=(15, 1),
@@ -235,10 +257,10 @@ layout = [
                 ],
                 [
                     sg.Listbox(
-                        cards,
+                        displayed_cards,
                         size=(70, 20),
                         enable_events=True,
-                        key="-LIST-",
+                        key="-CARD_LIST-",
                         pad=(5, 5),
                         font=("Courier New", 10),
                     )
@@ -250,9 +272,10 @@ layout = [
     ],
 ]
 
-window = sg.Window(
+# Create main application window
+main_window = sg.Window(
     "MTGA Swapper",
-    layout,
+    main_window_layout,
     grab_anywhere=True,
     finalize=True,
     font=("Segoe UI", 10),
@@ -261,31 +284,39 @@ window = sg.Window(
     relative_location=(0, 0),
 )
 
-# Main Event Loop
+# Main GUI Event Loop
 while True:
-    event, values = window.read()
+    event, values = main_window.read()
     if event in (sg.WIN_CLOSED, "Exit"):
         break
 
-    if event == "-SORTBY-":
-        selected_sort = values["-SORTBY-"]
-        sorted_cards = sort_cards(window["-LIST-"].Values or cards, selected_sort)
-        window["-LIST-"].update(sorted_cards)
+    # Handle sorting of cards by selected attribute
+    if event == "-SORT_BY-":
+        selected_sort_attribute = values["-SORT_BY-"]
+        sorted_card_list = sort_cards_by_attribute(
+            main_window["-CARD_LIST-"].Values or displayed_cards,
+            selected_sort_attribute,
+        )
+        main_window["-CARD_LIST-"].update(sorted_card_list)
 
-    if event == "-DB-":
-        filename = get_file(
+    # Handle database and save directory selection
+    if event == "-SELECT_DATABASE-":
+        database_file_path = open_file_dialog(
             "Select your Raw_CardDatabase mtga file in Raw Folder",
             "mtga files",
             "*.mtga",
         )
         try:
-            cur, con, filename = sql_editor.main(filename)
+            # Initialize database connection and load cards
+            database_cursor, database_connection, database_file_path = (
+                database_manager.create_database_connection(database_file_path)
+            )
 
-            base_cards = list(
+            all_cards_formatted = list(
                 map(
-                    format_card,
+                    format_card_display,
                     sorted(
-                        cur.execute(
+                        database_cursor.execute(
                             """
         SELECT 
         CASE 
@@ -306,734 +337,1027 @@ while True:
                     ),
                 )
             )
-            cards = base_cards
+            displayed_cards = all_cards_formatted
         except (
-            sql_editor.sqlite3.OperationalError,
-            sql_editor.sqlite3.DatabaseError,
+            database_manager.sqlite3.OperationalError,
+            database_manager.sqlite3.DatabaseError,
             TypeError,
         ):
             sg.popup_error(
                 "Missing or incorrect database selected", auto_close_duration=3
             )
-        save_dir = get_dir("Select a folder to save images to")
-        with open(config_path, "w") as f:
-            config["SavePath"] = str(Path(save_dir).as_posix())
-            config["DatabasePath"] = str(Path(filename).as_posix())
-            f.write(sg.json.dumps(config))
-        asset_viewer.set_unity_version(filename, "2022.3.42f1")
-        window["-LIST-"].update(cards)
-        window["-Sleeve-"].update("Change Sleeves, Avatars, etc.", disabled=False)
-        window["DB-Display"].update("Database: " + (filename if filename else "None"))
-        window["IMG-Display"].update(
-            "Image Save Location: " + (save_dir if save_dir else "None")
+
+        # Select image save directory
+        image_save_directory = open_directory_dialog(
+            "Select a folder to save images to"
         )
 
-    if event == "-DL-":
-        cards_from_deck = create_decklist_window()
-        window["-UD-"].update(value=True)
-        event = "-UD-"
-        values["-UD-"] = True
+        # Save configuration to file
+        if image_save_directory and database_file_path:
+            with open(user_config_file_path, "w") as config_file:
+                user_config["SavePath"] = str(Path(image_save_directory).as_posix())
+                user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
+                config_file.write(sg.json.dumps(user_config))
 
-    if event == "-EXPORTFONTS-":
-        font_path = askopenfilename(
+        # Configure Unity version and update GUI
+        configure_unity_version(database_file_path, "2022.3.42f1")
+        main_window["-CARD_LIST-"].update(displayed_cards)
+        main_window["-CHANGE_ASSETS-"].update(
+            "Change Sleeves, Avatars, etc.", disabled=False
+        )
+        main_window["DATABASE_DISPLAY"].update(
+            "Database: " + (database_file_path if database_file_path else "None")
+        )
+        main_window["IMAGE_SAVE_DISPLAY"].update(
+            "Image Save Location: "
+            + (image_save_directory if image_save_directory else "None")
+        )
+
+    # Handle decklist loading
+    if event == "-LOAD_DECKLIST-":
+        cards_from_imported_deck = create_decklist_import_window()
+        main_window["-USE_DECKLIST-"].update(value=True)
+        event = "-USE_DECKLIST-"
+        values["-USE_DECKLIST-"] = True
+
+    # Handle font export functionality
+    if event == "-EXPORT_FONTS-":
+        font_bundle_path = askopenfilename(
             title="Select file that starts with 'Fonts_' in AssetBundle Folder"
         )
-        font_save_path = askdirectory(
-            initialdir=os.path.dirname(font_path),
+        font_export_directory = askdirectory(
+            initialdir=os.path.dirname(font_bundle_path),
             title="Select folder to save fonts",
         )
-        if font_path:
-            env = asset_viewer.load(font_path)
-            fonts = asset_viewer.get_fonts(env, font_save_path)
+        if font_bundle_path:
+            unity_environment = load_unity_bundle(font_bundle_path)
+            extracted_fonts = extract_fonts(unity_environment, font_export_directory)
 
-    if event == "-UD-":
-        use_decklist = values["-UD-"]
-        if use_decklist:
-            if cards_from_deck is None:
-                sg.popup_error(
-                    "Load a decklist first or disable Use Decklist",
-                    auto_close_duration=3,
-                )
-                window["-UD-"].update(value=False)
-                continue
+    # Handle change assets functionality (sleeves, avatars, etc.)
+    if event == "-CHANGE_ASSETS-":
+        if database_file_path and image_save_directory:
+            # Get the AssetBundle directory path
+            asset_bundle_directory = (
+                os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+            )
 
-            filtered_cards = [
-                c for c in base_cards if c[:15].strip() in cards_from_deck
-            ]
-            cards = filtered_cards
-            print(cards_from_deck)
-            if filtered_cards:
-                window["-LIST-"].update(filtered_cards)
-
-        else:
-            window["-LIST-"].update(base_cards)
-            cards = base_cards
-
-    if event == "-Sleeve-":
-        if filename and save_dir:
-
-            path = os.path.dirname(filename)[0:-3] + "AssetBundle"
-            files = sorted(
+            # Get list of asset bundle files (excluding card art)
+            asset_bundle_files = sorted(
                 [
-                    f
-                    for f in os.listdir(path)
-                    if not any(["CardArt" in f, f.startswith("Bucket_Card.Sleeve")])
+                    bundle_file
+                    for bundle_file in os.listdir(asset_bundle_directory)
+                    if not any(
+                        [
+                            "CardArt" in bundle_file,
+                            bundle_file.startswith("Bucket_Card.Sleeve"),
+                        ]
+                    )
                 ]
             )
-            window3 = sg.Window(
-                "Select a file to change/view the assets of",
+
+            # Create asset browser window
+            asset_browser_layout = [
+                [sg.Text("Select a file to change/view the assets of")],
+                [sg.Text("Search for files by type")],
+                [sg.Input(size=(90, 1), enable_events=True, key="-ASSET_SEARCH-")],
+                [sg.Button("Export all images below", key="-EXPORT_ALL_ASSETS-")],
                 [
-                    [sg.Text("Search for files by type")],
-                    [sg.Input(size=(90, 1), enable_events=True, key="-INPUT3-")],
-                    [sg.Button("Export all images below", key="-EXPORT-")],
-                    [
-                        sg.Listbox(
-                            files, size=(90, 40), enable_events=True, key="-LIST3-"
-                        )
-                    ],
+                    sg.Listbox(
+                        asset_bundle_files,
+                        size=(90, 40),
+                        enable_events=True,
+                        key="-ASSET_LIST-",
+                    )
                 ],
+            ]
+
+            asset_browser_window = sg.Window(
+                "Asset Browser - Sleeves, Avatars, etc.",
+                asset_browser_layout,
                 modal=True,
                 grab_anywhere=True,
                 relative_location=(0, 0),
                 finalize=True,
             )
+
+            # Asset browser event loop
             while True:
-                event3, values3 = window3.read()
-                if event3 == "Exit" or event3 == sg.WIN_CLOSED:
+                asset_event, asset_values = asset_browser_window.read()
+                if asset_event in (sg.WIN_CLOSED, "Exit"):
                     break
-                if event3 == "-EXPORT-":
-                    exporting_cards = window3["-LIST3-"].Values
-                    print(exporting_cards)
+
+                # Handle search filtering
+                if asset_event == "-ASSET_SEARCH-" and asset_values["-ASSET_SEARCH-"]:
+                    search_term = asset_values["-ASSET_SEARCH-"].lower()
+                    filtered_files = [
+                        file
+                        for file in asset_bundle_files
+                        if search_term in file.lower()
+                    ]
+                    asset_browser_window["-ASSET_LIST-"].update(filtered_files)
+                elif (
+                    asset_event == "-ASSET_SEARCH-"
+                    and not asset_values["-ASSET_SEARCH-"]
+                ):
+                    asset_browser_window["-ASSET_LIST-"].update(asset_bundle_files)
+
+                # Handle export all assets
+                if asset_event == "-EXPORT_ALL_ASSETS-":
+                    current_asset_list = asset_browser_window["-ASSET_LIST-"].Values
                     if (
                         sg.popup_yes_no(
-                            f"Are you sure you want to export these {len(exporting_cards)} file bundles?"
+                            f"Are you sure you want to export all images from these {len(current_asset_list)} file bundles?"
                         )
                         == "Yes"
                     ):
-                        if not os.path.exists(save_dir):
-                            os.makedirs(save_dir)
-                        for name in exporting_cards:
-                            env = asset_viewer.load(os.path.join(path, name))
-                            data_list = asset_viewer.get_texture(env)
-                            for i, item in enumerate(data_list):
-                                new_path = (
-                                    os.path.join(save_dir, name) + "-" + str(i) + ".png"
+                        if not os.path.exists(image_save_directory):
+                            os.makedirs(image_save_directory)
+
+                        for asset_file_name in current_asset_list:
+                            try:
+                                unity_environment = load_unity_bundle(
+                                    os.path.join(
+                                        asset_bundle_directory, asset_file_name
+                                    )
                                 )
-                                asset_viewer.open_image(item.image, new_path)
+                                extracted = extract_textures_from_bundle(
+                                    unity_environment
+                                )
+                                for texture in extracted:
+                                    texture.image.save(
+                                        os.path.join(
+                                            image_save_directory,
+                                            f"{texture.m_Name}.png",
+                                        )
+                                    )
+                            except Exception as e:
+                                print(f"Error processing {asset_file_name}: {e}")
+
                         sg.popup_auto_close(
-                            "All images exported successfully!", auto_close_duration=1
-                        )
-                if event3 == "-LIST3-" and len(values3["-LIST3-"]):
-                    name = values3["-LIST3-"][0]
-
-                    env = asset_viewer.load(os.path.join(path, name))
-                    data_list = asset_viewer.get_texture(env)
-                    index = 0
-                    data = data_list[0] if len(data_list) > 0 else None
-                    if data != None:
-                        img_byte_arr = io.BytesIO()
-                        data.image.save(img_byte_arr, format="PNG")
-
-                        # Show all images in a grid in one window (default view)
-                        images_per_row = 3
-                        gallery_images = []
-                        for i, item in enumerate(data_list):
-                            img_bytes = io.BytesIO()
-                            item.image.save(img_bytes, format="PNG")
-                            # Resize the image using your resize function before displaying
-                            resized_img, _, _ = asset_viewer.set_aspect_ratio(
-                                item.image, (200, 200), ratio=False
-                            )
-                            resized_bytes = io.BytesIO()
-                            resized_img.save(resized_bytes, format="PNG")
-                            gallery_images.append(
-                                sg.Button(
-                                    image_data=resized_bytes.getvalue(),
-                                    key=f"-GALLERY-IMG-{i}-",
-                                    pad=(5, 5),
-                                    tooltip=f"Click to view/edit image {i+1}",
-                                )
-                            )
-                        # Arrange images in rows
-                        gallery_rows = [
-                            gallery_images[i : i + images_per_row]
-                            for i in range(0, len(gallery_images), images_per_row)
-                        ]
-                        # Use a Column for vertical scrolling
-                        gallery_column = [row for row in gallery_rows]
-                        gallery_layout = [
-                            [
-                                sg.Text(
-                                    "Gallery for: "
-                                    + name
-                                    + " ("
-                                    + str(len(data_list))
-                                    + " images)"
-                                )
-                            ],
-                            [sg.Text("Click on an image to view/edit full size")],
-                            [
-                                sg.Checkbox(
-                                    "Remove Alpha (recommended)",
-                                    key="-RA-",
-                                    default=True,
-                                )
-                            ],
-                            [sg.Button("Export all images", key="-EXPORT-")],
-                            [sg.Button("Export all 3D meshes", key="-EXPORTMESH-")],
-                            [
-                                sg.Column(
-                                    gallery_column,
-                                    scrollable=True,
-                                    vertical_scroll_only=True,
-                                    size=(700, 500),
-                                )
-                            ],
-                            [sg.Button("Close Gallery", key="-CLOSE-")],
-                        ]
-                        window_gallery = sg.Window(
-                            "Gallery",
-                            gallery_layout,
-                            modal=True,
-                            grab_anywhere=True,
-                            finalize=True,
-                            location=(0, 0),
+                            "All images exported successfully!", auto_close_duration=2
                         )
 
-                        while True:
-                            e_gallery, values_gallery = window_gallery.read()
-                            if e_gallery in (sg.WIN_CLOSED, "-CLOSE-"):
-                                window_gallery.close()
-                                break
-                            # Check if any image was clicked
-                            if e_gallery == "-EXPORT-":
+                # Handle individual asset selection
+                if asset_event == "-ASSET_LIST-" and asset_values["-ASSET_LIST-"]:
+                    selected_asset_file = asset_values["-ASSET_LIST-"][0]
 
-                                if not os.path.exists(save_dir):
-                                    os.makedirs(save_dir)
-                                for i, item in enumerate(data_list):
-                                    new_path = (
-                                        os.path.join(save_dir, name)
-                                        + "-"
-                                        + str(i)
-                                        + ".png"
-                                    )
-                                    asset_viewer.open_image(
-                                        item.image,
-                                        new_path,
-                                        alpha=values_gallery["-RA-"],
-                                    )
-                                sg.popup_auto_close(
-                                    f"All images exported to {save_dir}!",
-                                    auto_close_duration=1,
+                    try:
+                        # Load the selected asset bundle
+                        unity_environment = load_unity_bundle(
+                            os.path.join(asset_bundle_directory, selected_asset_file)
+                        )
+
+                        # Get all textures from the bundle
+                        texture_data_list = extract_textures_from_bundle(
+                            unity_environment
+                        )
+
+                        if texture_data_list:
+                            # Create gallery view with thumbnails
+                            images_per_row = 3
+                            gallery_images = []
+
+                            for i, texture in enumerate(texture_data_list):
+                                # Create thumbnail for gallery
+                                thumbnail_image = resize_image_for_gallery(
+                                    texture.image, (200, 200)
                                 )
-                            if e_gallery == "-EXPORTMESH-":
-                                if not os.path.exists(save_dir):
-                                    os.makedirs(save_dir)
-                                c = asset_viewer.export_meshes(env, save_dir)
-
-                                sg.popup_auto_close(
-                                    f"{c} 3D meshes were found and exported to {save_dir}!",
-                                    auto_close_duration=1,
+                                thumbnail_bytes = convert_texture_to_bytes(
+                                    thumbnail_image
                                 )
 
-                            for i in range(len(data_list)):
-                                if e_gallery == f"-GALLERY-IMG-{i}-":
-                                    # Open the single image window with all options
-                                    index = i
-                                    data = data_list[index]
-                                    data = asset_viewer.shrink_to_monitor(data.image)
+                                gallery_images.append(
+                                    sg.Button(
+                                        image_data=thumbnail_bytes,
+                                        key=f"-GALLERY-IMG-{i}-",
+                                        pad=(5, 5),
+                                        tooltip=f"Click to view/edit image {i+1}",
+                                    )
+                                )
 
-                                    img_byte_arr = io.BytesIO()
-                                    data.save(img_byte_arr, format="PNG")
-                                    w, h = data.size
-                                    window4 = sg.Window(
-                                        "Showing: " + name + " Art",
-                                        [
+                            # Arrange images in rows
+                            gallery_rows = [
+                                gallery_images[i : i + images_per_row]
+                                for i in range(0, len(gallery_images), images_per_row)
+                            ]
+
+                            # Create gallery layout
+                            gallery_layout = [
+                                [
+                                    sg.Text(
+                                        f"Gallery for: {selected_asset_file} ({len(texture_data_list)} images)"
+                                    )
+                                ],
+                                [sg.Text("Click on an image to view/edit full size")],
+                                [
+                                    sg.Checkbox(
+                                        "Remove Alpha (recommended)",
+                                        key="-GALLERY_REMOVE_ALPHA-",
+                                        default=True,
+                                    )
+                                ],
+                                [
+                                    sg.Button(
+                                        "Export all images", key="-GALLERY_EXPORT_ALL-"
+                                    )
+                                ],
+                                [
+                                    sg.Button(
+                                        "Export all 3D meshes",
+                                        key="-GALLERY_EXPORT_MESHES-",
+                                    )
+                                ],
+                                [
+                                    sg.Column(
+                                        [row for row in gallery_rows],
+                                        scrollable=True,
+                                        vertical_scroll_only=True,
+                                        size=(700, 500),
+                                    )
+                                ],
+                                [sg.Button("Close Gallery", key="-GALLERY_CLOSE-")],
+                            ]
+
+                            gallery_window = sg.Window(
+                                "Asset Gallery",
+                                gallery_layout,
+                                modal=True,
+                                grab_anywhere=True,
+                                finalize=True,
+                                location=(0, 0),
+                            )
+
+                            # Gallery event loop
+                            while True:
+                                gallery_event, gallery_values = gallery_window.read()
+                                if gallery_event in (sg.WIN_CLOSED, "-GALLERY_CLOSE-"):
+                                    gallery_window.close()
+                                    break
+
+                                # Handle export all images
+                                if gallery_event == "-GALLERY_EXPORT_ALL-":
+                                    if not os.path.exists(image_save_directory):
+                                        os.makedirs(image_save_directory)
+
+                                    for i, texture in enumerate(texture_data_list):
+                                        save_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{i}.png"
+                                        save_image_to_file(
+                                            texture.image,
+                                            save_path,
+                                            gallery_values["-GALLERY_REMOVE_ALPHA-"],
+                                        )
+                                    sg.popup_auto_close(
+                                        f"All images exported to {image_save_directory}!",
+                                        auto_close_duration=1,
+                                    )
+
+                                # Handle export meshes
+                                if gallery_event == "-GALLERY_EXPORT_MESHES-":
+                                    if not os.path.exists(image_save_directory):
+                                        os.makedirs(image_save_directory)
+                                    mesh_count = export_3d_meshes(
+                                        unity_environment, image_save_directory
+                                    )
+                                    sg.popup_auto_close(
+                                        f"{mesh_count} 3D meshes were found and exported to {image_save_directory}!",
+                                        auto_close_duration=1,
+                                    )
+
+                                # Handle individual image selection from gallery
+                                for i in range(len(texture_data_list)):
+                                    if gallery_event == f"-GALLERY-IMG-{i}-":
+                                        texture_index = i
+                                        current_texture = texture_data_list[
+                                            texture_index
+                                        ]
+
+                                        # Resize for display
+                                        display_image = resize_image_to_screen(
+                                            current_texture.image
+                                        )
+                                        display_texture_bytes = (
+                                            convert_texture_to_bytes(display_image)
+                                        )
+
+                                        # Create individual asset editor window
+                                        asset_editor_layout = [
                                             [
-                                                sg.Button("Change image", key="-CI-"),
                                                 sg.Button(
-                                                    "Previous in bundle", key="-L-"
+                                                    "Change image",
+                                                    key="-CHANGE_ASSET_IMAGE-",
                                                 ),
-                                                sg.Button("Next in bundle", key="-R-"),
-                                                sg.Button(
-                                                    "Show bundle gallery",
-                                                    key="-Gallery-",
+                                                (
+                                                    sg.Button(
+                                                        "Previous",
+                                                        key="-ASSET_PREVIOUS-",
+                                                    )
+                                                    if len(texture_data_list) > 1
+                                                    else sg.Text("")
+                                                ),
+                                                (
+                                                    sg.Button(
+                                                        "Next", key="-ASSET_NEXT-"
+                                                    )
+                                                    if len(texture_data_list) > 1
+                                                    else sg.Text("")
                                                 ),
                                                 sg.Button(
-                                                    "Set aspect ratio to", key="-AR-"
+                                                    "Return to Gallery",
+                                                    key="-RETURN_GALLERY-",
+                                                ),
+                                                sg.Button(
+                                                    "Set aspect ratio to",
+                                                    key="-SET_ASPECT_RATIO-",
                                                 ),
                                                 sg.Input(
                                                     "Width",
-                                                    key="-AR-W-",
-                                                    size=(3, 1),
+                                                    key="-ASPECT_WIDTH-",
+                                                    size=(5, 1),
                                                 ),
                                                 sg.Input(
                                                     "Height",
-                                                    key="-AR-H-",
-                                                    size=(3, 1),
+                                                    key="-ASPECT_HEIGHT-",
+                                                    size=(5, 1),
                                                 ),
                                                 sg.Checkbox(
-                                                    "Remove Alpha (recommended)",
-                                                    key="-RA-",
+                                                    "Remove Alpha",
+                                                    key="-ASSET_REMOVE_ALPHA-",
                                                     default=True,
                                                 ),
-                                                sg.Button("Save", key="-SAVE-"),
+                                                sg.Button("Save", key="-SAVE_ASSET-"),
                                             ],
                                             [
                                                 sg.Image(
-                                                    source=img_byte_arr.getvalue(),
-                                                    key="-IMAGE-",
+                                                    source=display_texture_bytes,
+                                                    key="-ASSET_IMAGE-",
                                                 )
                                             ],
-                                        ],
-                                        modal=True,
-                                        grab_anywhere=True,
-                                        location=(0, 0),
-                                        finalize=True,
-                                    )
+                                            [
+                                                sg.Text(
+                                                    f"Texture {texture_index + 1} of {len(texture_data_list)} in {selected_asset_file}",
+                                                    key="-ASSET_INFO-",
+                                                )
+                                            ],
+                                        ]
 
-                                    while True:
-                                        e, values = window4.read()
-                                        if e == "Exit" or e == sg.WIN_CLOSED:
-                                            break
-                                        if e == "-L-":
-                                            index -= 1
-                                            if index < 0:
-                                                index = len(data_list) - 1
-                                            data = data_list[index].image
-                                            if data is not None:
-                                                img_byte_arr = io.BytesIO()
-                                                data.save(img_byte_arr, format="PNG")
-                                                window4["-IMAGE-"].update(
-                                                    source=img_byte_arr.getvalue()
-                                                )
-                                        if e == "-R-":
-                                            index += 1
-                                            if index >= len(data_list):
-                                                index = 0
-                                            data = data_list[index].image
-                                            if data is not None:
-                                                img_byte_arr = io.BytesIO()
-                                                data.save(img_byte_arr, format="PNG")
-                                                window4["-IMAGE-"].update(
-                                                    source=img_byte_arr.getvalue()
-                                                )
-                                        if e == "-CI-":
-                                            new = get_file(
-                                                "Select your new image",
-                                                "image files",
-                                                "*.png",
+                                        asset_editor_window = sg.Window(
+                                            f"Asset Editor - {selected_asset_file}",
+                                            asset_editor_layout,
+                                            modal=True,
+                                            grab_anywhere=True,
+                                            relative_location=(0, 0),
+                                            finalize=True,
+                                        )
+
+                                        # Asset editor event loop
+                                        while True:
+                                            asset_editor_event, asset_editor_values = (
+                                                asset_editor_window.read()
                                             )
-                                            if new != "":
+                                            if asset_editor_event in (
+                                                sg.WIN_CLOSED,
+                                                "Exit",
+                                                "-RETURN_GALLERY-",
+                                            ):
+                                                asset_editor_window.close()
+                                                break
 
-                                                data = asset_viewer.get_texture(env)[
-                                                    index
+                                            # Handle navigation between textures
+                                            if asset_editor_event in (
+                                                "-ASSET_PREVIOUS-",
+                                                "-ASSET_NEXT-",
+                                            ):
+                                                texture_index += (
+                                                    1
+                                                    if asset_editor_event
+                                                    == "-ASSET_NEXT-"
+                                                    else -1
+                                                )
+                                                if texture_index >= len(
+                                                    texture_data_list
+                                                ):
+                                                    texture_index = 0
+                                                if texture_index < 0:
+                                                    texture_index = (
+                                                        len(texture_data_list) - 1
+                                                    )
+
+                                                current_texture = texture_data_list[
+                                                    texture_index
                                                 ]
-                                                asset_viewer.save_image(
-                                                    data,
-                                                    new,
-                                                    os.path.join(path, name),
-                                                    env,
+                                                display_image = resize_image_to_screen(
+                                                    current_texture.image
                                                 )
-                                                new_path = (
-                                                    os.path.join(save_dir, name)
-                                                    + "-"
-                                                    + str(index)
-                                                    + f"_backup{randint(1, 1000)}.png"
-                                                )
-                                                asset_viewer.open_image(
-                                                    data_list[index].image,
-                                                    new_path,
-                                                    alpha=values["-RA-"],
-                                                )
-
-                                                window4["-IMAGE-"].update(source=new)
-                                                img_byte_arr = io.BytesIO()
-                                                new_img = asset_viewer.Image.open(new)
-                                                new_img.save(img_byte_arr, format="PNG")
-                                                resized_img, _, _ = (
-                                                    asset_viewer.set_aspect_ratio(
-                                                        new_img, (200, 200), ratio=False
+                                                display_texture_bytes = (
+                                                    convert_texture_to_bytes(
+                                                        display_image
                                                     )
                                                 )
-                                                resized_bytes = io.BytesIO()
-                                                resized_img.save(
-                                                    resized_bytes, format="PNG"
-                                                )
-                                                window_gallery[
-                                                    f"-GALLERY-IMG-{index}-"
+                                                asset_editor_window[
+                                                    "-ASSET_IMAGE-"
+                                                ].update(source=display_texture_bytes)
+                                                asset_editor_window[
+                                                    "-ASSET_INFO-"
                                                 ].update(
-                                                    image_data=resized_bytes.getvalue()
+                                                    f"Texture {texture_index + 1} of {len(texture_data_list)} in {selected_asset_file}"
                                                 )
-                                                data_list[index].image = new_img
-                                                sg.popup_auto_close(
-                                                    "Image changed successfully!",
-                                                    auto_close_duration=1,
+
+                                            # Handle image replacement
+                                            if (
+                                                asset_editor_event
+                                                == "-CHANGE_ASSET_IMAGE-"
+                                            ):
+                                                new_image_path = open_file_dialog(
+                                                    "Select your new image",
+                                                    "image files",
+                                                    "*.png",
                                                 )
-                                            else:
-                                                sg.popup_error(
-                                                    "Invalid image file",
-                                                    auto_close_duration=1,
-                                                )
-                                        if e == "-AR-":
-                                            img_byte_arr = io.BytesIO()
-                                            try:
-                                                resized, w, h = (
-                                                    asset_viewer.set_aspect_ratio(
-                                                        asset_viewer.no_alpha(
-                                                            data_list[index].image,
-                                                            alpha=values["-RA-"],
+                                                if new_image_path not in ("", None):
+                                                    # Create backup
+                                                    backup_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{texture_index}_backup{randint(1, 1000)}.png"
+                                                    save_image_to_file(
+                                                        current_texture.image,
+                                                        backup_path,
+                                                        asset_editor_values[
+                                                            "-ASSET_REMOVE_ALPHA-"
+                                                        ],
+                                                    )
+
+                                                    # Replace texture
+                                                    replace_texture_in_bundle(
+                                                        current_texture,
+                                                        new_image_path,
+                                                        os.path.join(
+                                                            asset_bundle_directory,
+                                                            selected_asset_file,
                                                         ),
+                                                        unity_environment,
+                                                    )
+
+                                                    # Update displays
+                                                    new_img = Image.open(new_image_path)
+                                                    display_image = (
+                                                        resize_image_to_screen(new_img)
+                                                    )
+                                                    display_texture_bytes = (
+                                                        convert_texture_to_bytes(
+                                                            display_image
+                                                        )
+                                                    )
+                                                    asset_editor_window[
+                                                        "-ASSET_IMAGE-"
+                                                    ].update(
+                                                        source=display_texture_bytes
+                                                    )
+
+                                                    # Update gallery thumbnail
+                                                    thumbnail_image = (
+                                                        resize_image_for_gallery(
+                                                            new_img, (200, 200)
+                                                        )
+                                                    )
+                                                    thumbnail_bytes = (
+                                                        convert_texture_to_bytes(
+                                                            thumbnail_image
+                                                        )
+                                                    )
+                                                    gallery_window[
+                                                        f"-GALLERY-IMG-{texture_index}-"
+                                                    ].update(image_data=thumbnail_bytes)
+
+                                                    # Update texture data
+                                                    texture_data_list[
+                                                        texture_index
+                                                    ].image = new_img
+
+                                                    sg.popup_auto_close(
+                                                        "Image changed successfully!",
+                                                        auto_close_duration=1,
+                                                    )
+
+                                            # Handle aspect ratio adjustment
+                                            if (
+                                                asset_editor_event
+                                                == "-SET_ASPECT_RATIO-"
+                                            ):
+                                                try:
+                                                    (
+                                                        resized_image,
+                                                        new_width,
+                                                        new_height,
+                                                    ) = adjust_image_aspect_ratio(
+                                                        current_texture.image,
                                                         (
-                                                            float(values["-AR-W-"]),
-                                                            float(values["-AR-H-"]),
+                                                            float(
+                                                                asset_editor_values[
+                                                                    "-ASPECT_WIDTH-"
+                                                                ]
+                                                            ),
+                                                            float(
+                                                                asset_editor_values[
+                                                                    "-ASPECT_HEIGHT-"
+                                                                ]
+                                                            ),
                                                         ),
                                                     )
+                                                    display_texture_bytes = (
+                                                        convert_texture_to_bytes(
+                                                            resized_image
+                                                        )
+                                                    )
+                                                    asset_editor_window[
+                                                        "-ASSET_IMAGE-"
+                                                    ].update(
+                                                        source=display_texture_bytes
+                                                    )
+                                                except ValueError:
+                                                    sg.popup_error(
+                                                        "Invalid aspect ratio values, edit them before applying",
+                                                        auto_close_duration=3,
+                                                    )
+
+                                            # Handle saving current texture
+                                            if asset_editor_event == "-SAVE_ASSET-":
+                                                save_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{texture_index}.png"
+                                                save_image_to_file(
+                                                    current_texture.image,
+                                                    save_path,
+                                                    asset_editor_values[
+                                                        "-ASSET_REMOVE_ALPHA-"
+                                                    ],
                                                 )
-                                            except ValueError:
-                                                sg.popup_error(
-                                                    "Invalid aspect ratio values, edit them before applying",
-                                                    auto_close_duration=3,
+                                                sg.popup_auto_close(
+                                                    "Image saved successfully!",
+                                                    auto_close_duration=1,
                                                 )
-                                            resized.save(img_byte_arr, format="PNG")
 
-                                            window4["-IMAGE-"].update(
-                                                source=img_byte_arr.getvalue()
-                                            )
-                                            data = img_byte_arr.getvalue()
+                                        break  # Exit the gallery loop when returning from editor
 
-                                        if e == "-RA-":
-                                            img_byte_arr = io.BytesIO()
-                                            data = asset_viewer.no_alpha(
-                                                data_list[index].image,
-                                                alpha=values["-RA-"],
-                                            )
-                                            data.save(img_byte_arr, format="PNG")
-                                            window4["-IMAGE-"].update(
-                                                source=img_byte_arr.getvalue()
-                                            )
-                                            data = img_byte_arr.getvalue()
-                                        if e == "-SAVE-":
-                                            new_path = (
-                                                os.path.join(save_dir, name)
-                                                + "-"
-                                                + str(index)
-                                                + ".png"
-                                            )
-                                            asset_viewer.open_image(
-                                                data_list[index].image,
-                                                new_path,
-                                                alpha=values["-RA-"],
-                                            )
-                                            sg.popup_auto_close(
-                                                "Image saved successfully!",
-                                                auto_close_duration=1,
-                                            )
-                                        if e == "-Gallery-":
-                                            window4.close()
-                                            break  # Return to gallery
-                                    window4.close()
-                                    break  # After closing image window, return to gallery
+                        else:
+                            sg.popup_error("No textures found in this asset bundle!")
 
-                    else:
-                        sg.popup_error(
-                            "Invalid texture file",
-                            auto_close_duration=1,
-                        )
-                if values3["-INPUT3-"] != "":  # if a keystroke entered in search field
-                    if values3["-INPUT3-"] != current_input:
-                        current_input = values3["-INPUT3-"]
-                        search = values3["-INPUT3-"]
-                        new_values = [
-                            x for x in files if search.lower() in x.lower()
-                        ]  # do the filtering
-                        window3["-LIST3-"].update(new_values)
-                else:
-                    # display original unfiltered list
-                    if current_input != "":
-                        window3["-LIST3-"].update(files)
-                        current_input = ""
+                    except Exception as e:
+                        sg.popup_error(f"Error loading asset bundle: {e}")
 
+            asset_browser_window.close()
         else:
             sg.popup_error(
                 "You haven't selected a database and/or save location",
                 auto_close_duration=3,
             )
 
-    if event == "-SA-":
+    # Handle decklist filtering toggle
+    if event == "-USE_DECKLIST-":
+        is_using_decklist_filter = values["-USE_DECKLIST-"]
+        if is_using_decklist_filter:
+            if cards_from_imported_deck is None:
+                sg.popup_error(
+                    "Load a decklist first or disable Use Decklist",
+                    auto_close_duration=3,
+                )
+                main_window["-USE_DECKLIST-"].update(value=False)
+                continue
 
-        # Prepare images for swap1 and swap2 if available
+            # Filter cards based on imported decklist
+            filtered_cards_from_deck = [
+                card
+                for card in all_cards_formatted
+                if card[:15].strip() in cards_from_imported_deck
+            ]
+            displayed_cards = filtered_cards_from_deck
+            print(cards_from_imported_deck)
+            if filtered_cards_from_deck:
+                main_window["-CARD_LIST-"].update(filtered_cards_from_deck)
 
-        img1 = (
-            pil_to_bytes(asset_viewer.get_card_textures(swap1, filename)[0][0])
-            if swap1
-            else None
-        )
+        else:
+            main_window["-CARD_LIST-"].update(all_cards_formatted)
+            displayed_cards = all_cards_formatted
 
-        img2 = (
-            pil_to_bytes(asset_viewer.get_card_textures(swap2, filename)[0][0])
-            if swap2
-            else None
-        )
+    # Handle search input for filtering cards
+    if values and values["-SEARCH_INPUT-"] != "":
+        if values["-SEARCH_INPUT-"] != current_search_input:
+            current_search_input = values["-SEARCH_INPUT-"].replace(" ", "").lower()
+            search_query = current_search_input
 
-        layout_swap = [
+            # Filter cards based on search query
+            filtered_search_results = [
+                card for card in displayed_cards if search_query in card.lower()
+            ]
+            main_window["-CARD_LIST-"].update(filtered_search_results)
+    else:
+        # Reset to full card list when search is cleared
+        if current_search_input != "":
+            main_window["-CARD_LIST-"].update(displayed_cards)
+            current_search_input = ""
+
+    # Handle card art swapping functionality
+    if event == "-SWAP_ARTS-":
+        # Prepare preview images for both cards to be swapped
+        first_card_preview_image = None
+        second_card_preview_image = None
+
+        if first_card_to_swap:
+            try:
+                card_data = get_card_texture_data(
+                    first_card_to_swap,
+                    database_file_path,
+                )
+                if card_data and card_data[0]:
+                    first_card_preview_image = convert_pil_image_to_bytes(
+                        card_data[0][0]
+                    )
+            except:
+                pass
+
+        if second_card_to_swap:
+            try:
+                card_data = get_card_texture_data(
+                    second_card_to_swap,
+                    database_file_path,
+                )
+                if card_data and card_data[0]:
+                    second_card_preview_image = convert_pil_image_to_bytes(
+                        card_data[0][0]
+                    )
+            except:
+                pass
+
+        # Create swap confirmation dialog layout
+        swap_confirmation_layout = [
             [sg.Text("You are about to swap the following cards:")],
             [
                 sg.Column(
                     [
-                        [sg.Text("Swap 1:")],
+                        [sg.Text("First Card:")],
                         [
                             sg.Text(
-                                str(swap1) if swap1 else "Not selected",
+                                (
+                                    str(first_card_to_swap)
+                                    if first_card_to_swap
+                                    else "Not selected"
+                                ),
                                 font=("Courier New", 10),
                             )
                         ],
-                        [sg.Image(img1, subsample=2) if img1 else sg.Text("No image")],
+                        [
+                            (
+                                sg.Image(first_card_preview_image, subsample=2)
+                                if first_card_preview_image
+                                else sg.Text("No image")
+                            )
+                        ],
                     ]
                 ),
                 sg.Column(
                     [
-                        [sg.Text("Swap 2:")],
+                        [sg.Text("Second Card:")],
                         [
                             sg.Text(
-                                str(swap2) if swap2 else "Not selected",
+                                (
+                                    str(second_card_to_swap)
+                                    if second_card_to_swap
+                                    else "Not selected"
+                                ),
                                 font=("Courier New", 10),
                             )
                         ],
-                        [sg.Image(img2, subsample=2) if img2 else sg.Text("No image")],
+                        [
+                            (
+                                sg.Image(second_card_preview_image, subsample=2)
+                                if second_card_preview_image
+                                else sg.Text("No image")
+                            )
+                        ],
                     ]
                 ),
             ],
             [
                 sg.Button(
                     "Confirm Swap",
-                    key="-CONFIRM-",
-                    disabled=swap1 is None or swap2 is None,
+                    key="-CONFIRM_SWAP-",
+                    disabled=first_card_to_swap is None or second_card_to_swap is None,
                 ),
-                sg.Button("Cancel", key="-CANCEL-"),
+                sg.Button("Cancel", key="-CANCEL_SWAP-"),
             ],
         ]
-        window_swap = sg.Window(
+
+        # Create and show swap confirmation window
+        swap_confirmation_window = sg.Window(
             "Confirm Swap",
-            layout_swap,
+            swap_confirmation_layout,
             modal=True,
             finalize=True,
             relative_location=(0, 0),
         )
+
+        # Swap confirmation event loop
         while True:
-            e_swap, _ = window_swap.read()
-            if e_swap in (sg.WIN_CLOSED, "-CANCEL-"):
-                window_swap.close()
+            swap_event, swap_values = swap_confirmation_window.read()
+            if swap_event in (sg.WIN_CLOSED, "-CANCEL_SWAP-"):
+                swap_confirmation_window.close()
                 break
-            if e_swap == "-CONFIRM-" and swap1 and swap2:
-                sql_editor.swap_values(swap1.grp_id, swap2.grp_id, cur, con)
-                sg.popup_ok("Swapped successfully!", auto_close_duration=2)
-                window_swap.close()
+            if (
+                swap_event == "-CONFIRM_SWAP-"
+                and first_card_to_swap
+                and second_card_to_swap
+            ):
+                # Perform the actual card swap in the database
+                database_manager.swap_card_group_ids(
+                    first_card_to_swap.grp_id,
+                    second_card_to_swap.grp_id,
+                    database_cursor,
+                    database_connection,
+                )
+                sg.popup_ok("Cards swapped successfully!", auto_close_duration=2)
+                swap_confirmation_window.close()
                 break
 
-    if values and values["-INPUT-"] != "":
-        if values["-INPUT-"] != current_input:
-            current_input = values["-INPUT-"].replace(" ", "").lower()
-            search = current_input
-
-            new_values = [x for x in cards if search in x.lower()]
-
-            window["-LIST-"].update(new_values)
-    else:
-        if current_input != "":
-            window["-LIST-"].update(cards)
-            current_input = ""
-
-    if event == "-LIST-" and values["-LIST-"]:
-        current_card = Card(
-            *values["-LIST-"][0].split(),
+    # Handle card selection from the list
+    if event == "-CARD_LIST-" and values["-CARD_LIST-"]:
+        # Create card object from selected list item
+        selected_card_data = MTGACard(
+            *values["-CARD_LIST-"][0].split(),
         )
-        if len(current_card.art_id) < 6:
-            current_card.art_id = current_card.art_id.zfill(6)
-        path = os.path.dirname(filename)[0:-3] + "AssetBundle"
+
+        # Ensure art_id is properly formatted (6 digits with leading zeros)
+        if len(selected_card_data.art_id) < 6:
+            selected_card_data.art_id = selected_card_data.art_id.zfill(6)
+
+        # Construct path to asset bundles
+        asset_bundle_directory = (
+            os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+        )
 
         try:
-            prefixed = [
-                f
-                for f in os.listdir(path)
-                if f.startswith(str(current_card.art_id)) and f.endswith(".mtga")
+            # Find the asset bundle file for this specific card
+            matching_bundle_files = [
+                bundle_file
+                for bundle_file in os.listdir(asset_bundle_directory)
+                if bundle_file.startswith(str(selected_card_data.art_id))
+                and bundle_file.endswith(".mtga")
             ][0]
 
-            env = asset_viewer.load(os.path.join(path, prefixed))
-            index = 0
-            textures, data_list = asset_viewer.get_card_textures(current_card, filename)
-            data = asset_viewer.get_image_from_texture(textures[index])
-            w, h = data_list[index].image.size
-            if textures != None:
+            # Load the Unity asset bundle
+            unity_environment = load_unity_bundle(
+                os.path.join(asset_bundle_directory, matching_bundle_files)
+            )
+            texture_index = 0
 
-                window4 = sg.Window(
-                    "Showing: " + current_card.name + " Art",
+            # Get card textures and process them for display
+            image_data_list, texture_data_list = get_card_texture_data(
+                selected_card_data,
+                database_file_path,
+            )
+
+            if texture_data_list:
+                card_textures = texture_data_list
+                display_texture_bytes = convert_texture_to_bytes(
+                    image_data_list[texture_index]
+                )
+
+                texture_width, texture_height = texture_data_list[
+                    texture_index
+                ].image.size
+            else:
+                # Handle case where no textures are found
+                card_textures = None
+                display_texture_bytes = None
+                sg.popup_error("No textures found for selected card!")
+                continue
+            selected_card_data.image = image_data_list[0]
+            if card_textures is not None:
+                # Create card editor window layout
+                card_editor_layout = [
                     [
-                        [
-                            sg.Button("Change image", key="-CI-"),
-                            (
-                                sg.Button("Previous in bundle", key="-L-")
-                                if len(textures) > 1
-                                else sg.Text("")
-                            ),
-                            (
-                                sg.Button("Next in bundle", key="-R-")
-                                if len(textures) > 1
-                                else sg.Text("")
-                            ),
-                            sg.Button("Set to Swap 1", key="-S1-"),
-                            sg.Button("Set to Swap 2", key="-S2-"),
-                            sg.Button("Set aspect ratio to", key="-AR-"),
-                            sg.Input(
-                                "3" if current_card.art_type == "1" else "11",
-                                key="-AR-W-",
-                                size=(3, 1),
-                            ),
-                            sg.Input(
-                                "4" if current_card.art_type == "1" else "8",
-                                key="-AR-H-",
-                                size=(3, 1),
-                            ),
-                            sg.Checkbox(
-                                "Remove Alpha (recommended)", key="-RA-", default=True
-                            ),
-                            sg.Button("Save", key="-SAVE-"),
-                            sg.Button(
-                                "Upscale", key="-UPSCALE-", disabled=not upscaling
-                            ),
-                        ],
-                        [
-                            sg.Image(
-                                source=asset_viewer.get_image_from_texture(
-                                    textures[index]
-                                ),
-                                key="-IMAGE-",
-                            )
-                        ],
+                        sg.Button("Change image", key="-CHANGE_IMAGE-"),
+                        (
+                            sg.Button("Previous in bundle", key="-PREVIOUS-")
+                            if len(card_textures) > 1
+                            else sg.Text("")
+                        ),
+                        (
+                            sg.Button("Next in bundle", key="-NEXT-")
+                            if len(card_textures) > 1
+                            else sg.Text("")
+                        ),
+                        sg.Button("Set to Swap 1", key="-SET_SWAP_1-"),
+                        sg.Button("Set to Swap 2", key="-SET_SWAP_2-"),
+                        sg.Button("Adjust style tags", key="-ADJUST_STYLE_TAGS-"),
+                        sg.Button("Set aspect ratio to", key="-SET_ASPECT_RATIO-"),
+                        sg.Input(
+                            "3" if selected_card_data.art_type == "1" else "11",
+                            key="-ASPECT_WIDTH-",
+                            size=(3, 1),
+                        ),
+                        sg.Input(
+                            "4" if selected_card_data.art_type == "1" else "8",
+                            key="-ASPECT_HEIGHT-",
+                            size=(3, 1),
+                        ),
+                        sg.Checkbox(
+                            "Remove Alpha (recommended)",
+                            key="-REMOVE_ALPHA-",
+                            default=True,
+                        ),
+                        sg.Button("Save", key="-SAVE_IMAGE-"),
+                        sg.Button(
+                            "Upscale",
+                            key="-UPSCALE_IMAGE-",
+                            disabled=not is_upscaling_available,
+                        ),
                     ],
+                    [
+                        sg.Image(
+                            source=display_texture_bytes,
+                            key="-CARD_IMAGE-",
+                        )
+                    ],
+                ]
+
+                # Create card editor window
+                card_editor_window = sg.Window(
+                    "Showing: " + selected_card_data.name + " Art",
+                    card_editor_layout,
                     modal=True,
                     grab_anywhere=True,
                     relative_location=(0, 0),
                     finalize=True,
                 )
 
+                # Card editor event loop
                 while True:
-                    e, values = window4.read()
-                    if e == "-EXIT-" or e == sg.WIN_CLOSED:
+                    editor_event, editor_values = card_editor_window.read()
+                    if editor_event == "-EXIT-" or editor_event == sg.WIN_CLOSED:
                         break
 
-                    if e in ("-L-", "-R-"):
-                        index += 1 if e == "-R-" else -1
-                        if index >= len(textures):
-                            index = 0
-                        if index < 0:
-                            index = len(textures) - 1
-
-                        window4["-IMAGE-"].update(
-                            source=asset_viewer.get_image_from_texture(textures[index])
+                    # Handle navigation between textures in the bundle
+                    if editor_event in ("-PREVIOUS-", "-NEXT-"):
+                        texture_index += 1 if editor_event == "-NEXT-" else -1
+                        if texture_index >= len(card_textures):
+                            texture_index = 0
+                        if texture_index < 0:
+                            texture_index = len(card_textures) - 1
+                        1070957949
+                        display_texture_bytes = convert_texture_to_bytes(
+                            card_textures[texture_index]
                         )
+                        card_editor_window["-CARD_IMAGE-"].update(
+                            source=display_texture_bytes
+                        )
+                        selected_card_data.image = card_textures[texture_index].image
 
-                        data = asset_viewer.get_image_from_texture(textures[index])
+                    if editor_event == "-ADJUST_STYLE_TAGS-":
+                        current_tags = database_cursor.execute(
+                            "SELECT Tags FROM Cards WHERE GrpId = ?",
+                            (selected_card_data.grp_id,),
+                        ).fetchone()[0]
+                        print(current_tags)
 
-                    if e == "-CI-":
-                        new = get_file("Select your new image", "image files", "*.png")
-                        if new not in ("", None):
-                            # save a backup of the original image
-
-                            print("backup saved")
-                            # save the new image
-                            data = asset_viewer.get_texture(env)[index]
-                            asset_viewer.save_image(
-                                data,
-                                new,
-                                os.path.join(path, prefixed),
-                                env,
+                        new_tag = sg.popup_get_text(
+                            "Edit Tags (Make sure you know what you're doing. Consider copying the existing tags as backup)",
+                            default_text=(
+                                current_tags
+                                if current_tags not in ("", "('',)")
+                                else ""
+                            ),
+                        )
+                        if new_tag:
+                            database_cursor.execute(
+                                "UPDATE Cards SET Tags = ? WHERE GrpId = ?",
+                                (new_tag, selected_card_data.grp_id),
                             )
-                            new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}_backup{randint(1, 1000)}.png"
-                            asset_viewer.open_image(
-                                data_list[index].image, new_path, alpha=values["-RA-"]
+                            database_connection.commit()
+
+                    # Handle image replacement
+                    if editor_event == "-CHANGE_IMAGE-":
+                        new_image_path = open_file_dialog(
+                            "Select your new image", "image files", "*.png"
+                        )
+                        if new_image_path not in ("", None):
+                            # Create backup of original image
+                            backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup{randint(1, 1000)}.png"
+                            save_image_to_file(
+                                texture_data_list[texture_index].image,
+                                backup_image_path,
+                                editor_values["-REMOVE_ALPHA-"],
                             )
-                            window4["-IMAGE-"].update(source=new)
+
+                            # Replace the texture with new image
+                            texture_data = extract_textures_from_bundle(
+                                unity_environment
+                            )[texture_index]
+                            replace_texture_in_bundle(
+                                texture_data,
+                                new_image_path,
+                                os.path.join(
+                                    asset_bundle_directory, matching_bundle_files
+                                ),
+                                unity_environment,
+                            )
+                            display_texture_bytes = convert_texture_to_bytes(
+                                texture_data.image
+                            )
+
+                            # Update display with new image
+                            card_editor_window["-CARD_IMAGE-"].update(
+                                source=display_texture_bytes
+                            )
+                            selected_card_data.image = texture_data.image
                             sg.popup_auto_close(
-                                "Image changed successfully!",
-                                auto_close_duration=1,
+                                "Image changed successfully!", auto_close_duration=1
                             )
                         else:
-                            sg.popup_error(
-                                "Invalid image file",
-                                auto_close_duration=1,
-                            )
+                            sg.popup_error("Invalid image file", auto_close_duration=1)
 
-                    if e == "-RA-":
-                        img_byte_arr = io.BytesIO()
-                        data = asset_viewer.no_alpha(
-                            data_list[index].image, alpha=values["-RA-"]
+                    # Handle alpha channel removal
+                    if editor_event == "-REMOVE_ALPHA-":
+                        processed_image = remove_alpha_channel(
+                            texture_data_list[texture_index].image,
+                            editor_values["-REMOVE_ALPHA-"],
                         )
-                        data.save(img_byte_arr, format="PNG")
-                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
-                        data = img_byte_arr.getvalue()
-                    if e == "-SAVE-":
-                        new_path = f"{os.path.join(save_dir,current_card.name.replace('/', '-'))}-{str(index)}-{w}x{h}.png"
-                        asset_viewer.open_image(
-                            data_list[index].image, new_path, alpha=values["-RA-"]
+                        display_texture_bytes = convert_texture_to_bytes(
+                            processed_image
+                        )
+                        card_editor_window["-CARD_IMAGE-"].update(
+                            source=display_texture_bytes
+                        )
+                        selected_card_data.image = processed_image
+
+                    # Handle image saving
+                    if editor_event == "-SAVE_IMAGE-":
+                        save_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}.png"
+                        save_image_to_file(
+                            selected_card_data.image,
+                            save_path,
+                            editor_values["-REMOVE_ALPHA-"],
                         )
                         sg.popup_auto_close(
-                            "Image saved successfully!",
-                            auto_close_duration=1,
+                            "Image saved successfully!", auto_close_duration=1
                         )
-                    if e == "-UPSCALE-":
 
-                        w, h = textures[index].size
-                        upped = upscale_image(io.BytesIO(data), w, h)
-                        img_byte_arr = io.BytesIO()
-                        shrunk = asset_viewer.shrink_to_monitor(upped)
-                        shrunk.save(img_byte_arr, format="PNG")
+                    # Handle image upscaling
+                    if editor_event == "-UPSCALE_IMAGE-" and is_upscaling_available:
+                        current_width, current_height = card_textures[
+                            texture_index
+                        ].image.size
+                        upscaled_image = upscale_card_image(
+                            io.BytesIO(display_texture_bytes),
+                            current_width,
+                            current_height,
+                        )
 
-                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
-                        new_arr = io.BytesIO()
-                        upped.save(new_arr, format="PNG")
-                        data = new_arr.getvalue()
-                        w, h = upped.size
+                        # Resize for display if too large
+                        display_image = resize_image_to_screen(upscaled_image)
+                        display_texture_bytes = convert_texture_to_bytes(display_image)
+                        card_editor_window["-CARD_IMAGE-"].update(
+                            source=display_texture_bytes
+                        )
+                        selected_card_data.image = upscaled_image
 
-                    if e == "-S1-":
-                        swap1 = current_card
+                        # Update dimensions
+                        texture_width, texture_height = upscaled_image.size
 
-                    if e == "-S2-":
-                        swap2 = current_card
-
-                    if e == "-AR-":
-                        img_byte_arr = io.BytesIO()
-                        print(type(data))
+                    # Handle aspect ratio adjustment
+                    if editor_event == "-SET_ASPECT_RATIO-":
                         try:
-                            resized, w, h = asset_viewer.set_aspect_ratio(
-                                data,
-                                (
-                                    float(values["-AR-W-"]),
-                                    float(values["-AR-H-"]),
-                                ),
+                            resized_image, new_width, new_height = (
+                                adjust_image_aspect_ratio(
+                                    display_texture_bytes,
+                                    (
+                                        float(editor_values["-ASPECT_WIDTH-"]),
+                                        float(editor_values["-ASPECT_HEIGHT-"]),
+                                    ),
+                                )
                             )
+                            display_texture_bytes = convert_texture_to_bytes(
+                                resized_image
+                            )
+                            card_editor_window["-CARD_IMAGE-"].update(
+                                source=display_texture_bytes
+                            )
+                            texture_width, texture_height = new_width, new_height
+                            selected_card_data.image = resized_image
                         except ValueError:
                             sg.popup_error(
                                 "Invalid aspect ratio values, edit them before applying",
                                 auto_close_duration=3,
                             )
-                            continue
-                        resized.save(img_byte_arr, format="PNG")
 
-                        window4["-IMAGE-"].update(source=img_byte_arr.getvalue())
-                        data = img_byte_arr.getvalue()
+                    # Handle setting cards for swapping
+                    if editor_event == "-SET_SWAP_1-":
+                        first_card_to_swap = selected_card_data
+
+                    if editor_event == "-SET_SWAP_2-":
+                        second_card_to_swap = selected_card_data
+
+                card_editor_window.close()
 
             else:
-                sg.popup_error(
-                    "Invalid texture file",
-                    auto_close_duration=1,
-                )
+                sg.popup_error("Invalid texture file", auto_close_duration=1)
 
         except IndexError:
-            sg.popup_error(
-                "Card not working at the moment",
-                auto_close_duration=2,
-            )
+            sg.popup_error("Card not working at the moment", auto_close_duration=2)
             continue
 
-window.close()
+# Close the main window when the event loop ends
+main_window.close()
