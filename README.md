@@ -31,6 +31,7 @@ Report any issues in Feedback & Support
   - [8. Edit other assets](#8-edit-other-assets)
   - [9. Import Decklists](#9-import-decklists)
   - [10. Export Fonts](#10-export-fonts)
+  - [11. Unlock card styles](#11-unlock-card-styles)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -207,6 +208,14 @@ Change avatars, sleeves, and more using the same interface.
    If you want to export the font files in ttf format, there is now a button in the App's main menu
 ---
 
+### 10. Unlock Card Styles
+
+
+   <img width="1421" height="321" alt="image" src="https://github.com/user-attachments/assets/f64c8163-aba0-4d6f-822c-9af798ac71fa" />
+See the [list of working styles](https://github.com/BobJr23/MTGA_Swapper/blob/main/tags.md) 
+1696804317 is the style most cards have for 200-1200 gems which show the card "moving" and being borderless
+   
+---
 
 ## ✨ Final In-Game Results
 
