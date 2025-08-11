@@ -1280,7 +1280,7 @@ while True:
                         print(current_tags)
 
                         new_tag = sg.popup_get_text(
-                            "Edit Tags (Make sure you know what you're doing. Consider copying the existing tags as backup)",
+                            "Edit Tags (Add 1696804317 to the tags (comma separated if needed) to use the animated style borderless)",
                             default_text=(
                                 current_tags
                                 if current_tags not in ("", "('',)")
