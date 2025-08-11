@@ -51,6 +51,34 @@ def swap_card_group_ids(
     database_connection.commit()
 
 
+def unlock_parallax_style(card_ids: List[str], database_cursor: sqlite3.Cursor) -> None:
+    """
+    Unlock the parallax style for a list of card IDs.
+
+    Args:
+        card_ids: List of card IDs to unlock
+        database_cursor: SQLite database cursor
+    """
+    try:
+        print(card_ids)
+        database_cursor.executemany(
+            """
+        UPDATE Cards
+        SET tags = CASE
+            WHEN tags IS NULL OR TRIM(tags) = '' THEN '1696804317'
+            ELSE tags || ',1696804317'
+        END
+        WHERE GrpId = ? AND tags NOT LIKE '%1696804317%'
+        """,
+            [(card_id,) for card_id in card_ids],
+        )
+        database_cursor.connection.commit()
+        return True
+
+    except sqlite3.OperationalError:
+        return False
+
+
 def get_card_details_by_name(
     card_name: str, database_cursor: sqlite3.Cursor
 ) -> List[Tuple]:

@@ -240,6 +240,12 @@ main_window_layout = [
                     ),
                 ],
                 [
+                    sg.Button(
+                        "Unlock Parallax Style for all cards in the list below",
+                        key="-UNLOCK_PARALLAX-",
+                    )
+                ],
+                [
                     sg.Text("Sort by:"),
                     sg.Combo(
                         ["Name", "Set", "ArtType", "GrpID", "ArtID"],
@@ -380,6 +386,21 @@ while True:
         main_window["-USE_DECKLIST-"].update(value=True)
         event = "-USE_DECKLIST-"
         values["-USE_DECKLIST-"] = True
+
+    if event == "-UNLOCK_PARALLAX-":
+        grpid_list = [
+            card.split()[3]
+            for card in filtered_search_results
+            if card.split()[0]
+            not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
+        ]
+
+        if database_manager.unlock_parallax_style(grpid_list, database_cursor):
+            sg.popup_auto_close("Parallax style unlocked successfully!")
+        else:
+            sg.popup_auto_close(
+                "Failed to unlock parallax style, ensure that the database is not open in another program."
+            )
 
     # Handle font export functionality
     if event == "-EXPORT_FONTS-":
@@ -929,6 +950,7 @@ while True:
             print(cards_from_imported_deck)
             if filtered_cards_from_deck:
                 main_window["-CARD_LIST-"].update(filtered_cards_from_deck)
+            filtered_search_results = filtered_cards_from_deck
 
         else:
             main_window["-CARD_LIST-"].update(all_cards_formatted)
