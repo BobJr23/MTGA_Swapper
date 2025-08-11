@@ -576,6 +576,7 @@ while True:
                                         "Remove Alpha (recommended)",
                                         key="-GALLERY_REMOVE_ALPHA-",
                                         default=True,
+                                        enable_events=True,
                                     )
                                 ],
                                 [
@@ -705,6 +706,7 @@ while True:
                                                     "Remove Alpha",
                                                     key="-ASSET_REMOVE_ALPHA-",
                                                     default=True,
+                                                    enable_events=True,
                                                 ),
                                                 sg.Button("Save", key="-SAVE_ASSET-"),
                                             ],
@@ -1086,12 +1088,27 @@ while True:
             ):
                 # Perform the actual card swap in the database
                 print(first_card_to_swap.grp_id, second_card_to_swap.grp_id)
-                database_manager.swap_card_group_ids(
-                    first_card_to_swap.grp_id,
-                    second_card_to_swap.grp_id,
-                    database_cursor,
-                    database_connection,
-                )
+                if (
+                    first_card_to_swap.name != second_card_to_swap.name
+                    or first_card_to_swap.name
+                    in ("island", "forest", "mountain", "plains", "swamp")
+                ):
+                    print("Swapping cards")
+                    database_manager.swap_card_group_ids(
+                        first_card_to_swap.grp_id,
+                        second_card_to_swap.grp_id,
+                        database_cursor,
+                        database_connection,
+                    )
+                else:
+                    print("Swapping styles")
+                    database_manager.swap_card_styles(
+                        first_card_to_swap.grp_id,
+                        second_card_to_swap.grp_id,
+                        database_cursor,
+                        database_connection,
+                    )
+
                 sg.popup_ok("Cards swapped successfully!", auto_close_duration=2)
                 swap_confirmation_window.close()
                 break
@@ -1246,6 +1263,7 @@ while True:
                             "Remove Alpha (recommended)",
                             key="-REMOVE_ALPHA-",
                             default=True,
+                            enable_events=True,
                         ),
                         sg.Button("Save", key="-SAVE_IMAGE-"),
                         sg.Button(
@@ -1365,6 +1383,7 @@ while True:
                                 texture_width, texture_height = texture_data_list[
                                     texture_index
                                 ].image.size
+                                print(len(image_data_list))
                             else:
                                 # Handle case where no textures are found
                                 card_textures = None
@@ -1422,6 +1441,7 @@ while True:
 
                     # Handle alpha channel removal
                     if editor_event == "-REMOVE_ALPHA-":
+                        print(editor_values["-REMOVE_ALPHA-"])
                         processed_image = remove_alpha_channel(
                             texture_data_list[texture_index].image,
                             editor_values["-REMOVE_ALPHA-"],

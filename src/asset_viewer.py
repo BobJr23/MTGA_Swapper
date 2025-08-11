@@ -325,17 +325,3 @@ def extract_fonts(unity_environment: UnityPy.Environment, export_directory) -> N
             )
             with open(font_file_path, "wb") as font_file:
                 font_file.write(bytes(font_data.m_FontData))
-
-
-# Standalone font extraction utility (for direct script execution)
-if __name__ == "__main__":
-    font_bundle_path = askopenfilename(
-        title="Select file that starts with 'Fonts_' in AssetBundle Folder"
-    )
-    font_export_directory = askdirectory(
-        initialdir=os.path.dirname(font_bundle_path),
-        title="Select folder to save fonts",
-    )
-    if font_bundle_path:
-        unity_environment = load_unity_bundle(font_bundle_path)
-        extract_fonts(unity_environment, font_export_directory)

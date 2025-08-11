@@ -51,6 +51,61 @@ def swap_card_group_ids(
     database_connection.commit()
 
 
+def swap_card_styles(
+    first_grp_id: str,
+    second_grp_id: str,
+    database_cursor: sqlite3.Cursor,
+    database_connection: sqlite3.Connection,
+) -> None:
+    """
+    Swap the ArtID and tag values between two cards in the database for styles.
+    Uses a temporary value (0 and 1) to avoid constraint conflicts.
+
+    Args:
+        first_grp_id: Group ID of the first card to swap
+        second_grp_id: Group ID of the second card to swap
+        database_cursor: SQLite database cursor
+        database_connection: SQLite database connection
+    """
+    try:
+        # First pass: Get first card's tags and ArtId
+        first_card_data = database_cursor.execute(
+            """
+                SELECT tags, ArtId FROM Cards WHERE GrpId = ?
+            """,
+            (first_grp_id,),
+        ).fetchone()
+        first_card_tags, first_card_art_id = (
+            first_card_data if first_card_data else ("", "")
+        )
+
+        # Copy tags and ArtId from second card to first card
+        database_cursor.execute(
+            """
+                UPDATE Cards 
+                SET tags = (SELECT tags FROM Cards WHERE GrpId = ?),
+                    ArtId = (SELECT ArtId FROM Cards WHERE GrpId = ?)
+                WHERE GrpId = ?
+            """,
+            (second_grp_id, second_grp_id, first_grp_id),
+        )
+        # Set second card's tags and ArtId to first card's values
+        database_cursor.execute(
+            """
+                UPDATE Cards
+                SET tags = ?,
+                    ArtId = ?
+                WHERE GrpId = ?
+            """,
+            (first_card_tags, first_card_art_id, second_grp_id),
+        )
+
+    except sqlite3.OperationalError:
+        print("You used the wrong file, relaunch this program and try again")
+        exit()
+    database_connection.commit()
+
+
 def unlock_parallax_style(card_ids: List[str], database_cursor: sqlite3.Cursor) -> None:
     """
     Unlock the parallax style for a list of card IDs.
