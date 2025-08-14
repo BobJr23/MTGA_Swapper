@@ -108,6 +108,7 @@ If not,
 
 ## ⚠️ Disclaimer
 
+- Your opponents do not see your edits, this is only client-side
 - Use at your own risk.
 - This is for educational purposes only.
 - I'm **not responsible** for any issues with your device or account.  
