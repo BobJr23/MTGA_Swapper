@@ -6,6 +6,9 @@
 Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
 
+
+Unlock any card styles in the game, including parallax and speical event styles.
+
 **✅ Fixed major bugs – fully working**
 
 **NEW: exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
