@@ -136,7 +136,7 @@ def extract_fonts(
 
 
 def get_card_texture_data(
-    card_object, database_file_path: str
+    card_object, database_file_path: str, ret_matching=False
 ) -> Optional[Tuple[List[Image.Image], List[UnityPy.classes.Texture2D]]]:
     """
     Extract texture data for a specific card from its asset bundle.
@@ -178,6 +178,8 @@ def get_card_texture_data(
                 processed_images = [
                     remove_alpha_channel(texture.image) for texture in texture_data_list
                 ]
+                if ret_matching:
+                    return processed_images, texture_data_list, matching_files[0]
                 return processed_images, texture_data_list
 
         except Exception as error:
