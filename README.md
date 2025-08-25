@@ -6,6 +6,9 @@
 Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
 
+
+Unlock any card styles in the game, including parallax and speical event styles.
+
 **✅ Fixed major bugs – fully working**
 
 **NEW: exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
@@ -108,6 +111,7 @@ If not,
 
 ## ⚠️ Disclaimer
 
+- Your opponents do not see your edits, this is only client-side
 - Use at your own risk.
 - This is for educational purposes only.
 - I'm **not responsible** for any issues with your device or account.  
@@ -208,12 +212,14 @@ Change avatars, sleeves, and more using the same interface.
    If you want to export the font files in ttf format, there is now a button in the App's main menu
 ---
 
-### 10. Unlock Card Styles
+### 11. Unlock Card Styles
 
 
    <img width="1421" height="321" alt="image" src="https://github.com/user-attachments/assets/f64c8163-aba0-4d6f-822c-9af798ac71fa" />
-See the [list of working styles](https://github.com/BobJr23/MTGA_Swapper/blob/main/tags.md) 
-1696804317 is the style most cards have for 200-1200 gems which show the card "moving" and being borderless
+   
+See the [list of working tags](https://github.com/BobJr23/MTGA_Swapper/blob/main/tags.md)
+
+1696804317 is the parallax style most cards have for 200-1200 gems which show the card "moving" and being borderless
    
 ---
 
@@ -223,7 +229,6 @@ Get creative – make MTGA look how *you* want!
 
 ![Result 1](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d72bcdec-2f6b-4804-89aa-4d42634aedcc)
 ![Result 2](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/8e56bd7e-c6c5-499f-a1c3-37e6702dacab)  
-![Result 3](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/2e023d86-0d2d-4515-bc1e-9b9278ec6f00)  
 ![Result 4](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/115e8e66-85c2-4f51-af9d-f9cb46482b8b)
 
 ---
