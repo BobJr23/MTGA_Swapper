@@ -7,7 +7,7 @@ Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, includ
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
 
 
-Unlock any card styles in the game, including parallax and speical event styles.
+Unlock any card styles in the game, including parallax and speical event styles. (See table of contents section 11)
 
 **✅ Fixed major bugs – fully working**
 
