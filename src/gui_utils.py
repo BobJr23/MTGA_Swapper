@@ -53,3 +53,4 @@ def convert_pil_image_to_bytes(pil_image: Image.Image) -> bytes:
     image_byte_array = io.BytesIO()
     pil_image.save(image_byte_array, format="PNG")
     return image_byte_array.getvalue()
+

@@ -10,7 +10,7 @@ from src.load_preset import get_grp_id_info
 if is_upscaling_available:
     from src.upscaler import upscale_card_image
 
-from src.decklist import create_decklist_import_window
+from src.decklist import create_decklist_import_window, create_search_tokens_window
 from src.card_models import MTGACard, format_card_display, sort_cards_by_attribute
 from src.gui_utils import (
     open_file_dialog,
@@ -143,6 +143,9 @@ if (
                 all_cards_formatted = ["Select a database first"]
 
             displayed_cards = all_cards_formatted
+            asset_bundle_directory = (
+                os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+            )
             configure_unity_version(database_file_path, "2022.3.42f1")
         else:
             database_file_path = None
@@ -165,6 +168,7 @@ first_card_to_swap, second_card_to_swap = None, None
 current_search_input = ""
 is_using_decklist_filter = False
 cards_from_imported_deck = None
+
 
 # Create main GUI layout
 main_window_layout = [
@@ -199,6 +203,7 @@ main_window_layout = [
                         "Export Fonts", key="-EXPORT_FONTS-", size=(15, 1), pad=(5, 5)
                     ),
                 ],
+                [sg.Button("Search tokens", key="-SEARCH_TOKENS-", expand_x=True)],
                 [
                     sg.Input(
                         "Database: "
@@ -387,6 +392,143 @@ while True:
             "Image Save Location: "
             + (image_save_directory if image_save_directory else "None")
         )
+        asset_bundle_directory = (
+            os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+        )
+
+    if event == "-SEARCH_TOKENS-":
+        if database_cursor is not None:
+            window_tokens = create_search_tokens_window(database_cursor)
+            while True:
+                event_token, values_token = window_tokens.read()
+                if event_token == sg.WINDOW_CLOSED or event_token == "-CANCEL_BUTTON-":
+                    break
+                elif event_token == "-SEARCH_BUTTON-":
+                    artist_name = values_token["-SEARCH_INPUT-"]
+                    # Perform search operation here
+                    tokens = database_manager.get_tokens_by_artist(
+                        artist_name, database_cursor
+                    )
+                    if tokens:
+                        window_tokens["-RESULT_LIST-"].update(
+                            values=[f"{name} - {art_id}" for name, art_id in tokens]
+                        )
+                    else:
+                        window_tokens["-RESULT_LIST-"].update(
+                            values=["No tokens found."]
+                        )
+                elif event_token == "-RESULT_LIST-":
+                    selected_token = values_token["-RESULT_LIST-"][0]
+                    print(selected_token)
+                    token_card = MTGACard(
+                        "", "", "", "", selected_token.split(" - ")[1]
+                    )
+                    print(token_card.art_id)
+
+                    image_data_list, texture_data_list, matching_file = (
+                        get_card_texture_data(
+                            token_card, database_file_path, ret_matching=True
+                        )
+                    )
+                    if image_data_list:
+                        display_texture_bytes = convert_texture_to_bytes(
+                            image_data_list[0]
+                        )
+                        token_card.image = display_texture_bytes
+                    else:
+                        print("No texture found.")
+                    token_editor_layout = [
+                        [
+                            sg.Button(
+                                "Change image",
+                                key="-CHANGE_ASSET_IMAGE-",
+                            ),
+                            sg.Button(
+                                "Set aspect ratio to",
+                                key="-SET_ASPECT_RATIO-",
+                            ),
+                            sg.Input(
+                                "Width",
+                                key="-ASPECT_WIDTH-",
+                                size=(5, 1),
+                            ),
+                            sg.Input(
+                                "Height",
+                                key="-ASPECT_HEIGHT-",
+                                size=(5, 1),
+                            ),
+                            sg.Button("Save", key="-SAVE_ASSET-"),
+                        ],
+                        [
+                            sg.Image(
+                                source=display_texture_bytes,
+                                key="-ASSET_IMAGE-",
+                            )
+                        ],
+                    ]
+                    # Show the token editor window
+                    token_editor_window = sg.Window(
+                        "Edit Token",
+                        token_editor_layout,
+                        modal=True,
+                        finalize=True,
+                        grab_anywhere=True,
+                        relative_location=(0, 0),
+                    )
+                    while True:
+                        event, values = token_editor_window.read()
+                        if event == sg.WINDOW_CLOSED:
+                            break
+                        if event == "-CHANGE_ASSET_IMAGE-":
+                            new_image_path = open_file_dialog(
+                                "Select your new image", "image files", "*.png"
+                            )
+                            if new_image_path not in ("", None):
+                                # Create backup of original image
+                                backup_image_path = f"{os.path.join(image_save_directory, token_card.art_id)}-token_backup.png"
+                                save_image_to_file(
+                                    texture_data_list[0].image, backup_image_path, True
+                                )
+                                unity_environment = load_unity_bundle(
+                                    os.path.join(asset_bundle_directory, matching_file)
+                                )
+                                # Replace the texture with new image
+                                texture_data = extract_textures_from_bundle(
+                                    unity_environment
+                                )[0]
+                                replace_texture_in_bundle(
+                                    texture_data,
+                                    new_image_path,
+                                    os.path.join(asset_bundle_directory, matching_file),
+                                    unity_environment,
+                                )
+                                display_texture_bytes = convert_texture_to_bytes(
+                                    texture_data.image
+                                )
+
+                                # Update display with new image
+                                token_editor_window["-ASSET_IMAGE-"].update(
+                                    source=display_texture_bytes
+                                )
+                                token_card.image = texture_data.image
+                                sg.popup_auto_close(
+                                    "Image changed successfully!", auto_close_duration=1
+                                )
+                            else:
+                                sg.popup_error(
+                                    "Invalid image file", auto_close_duration=1
+                                )
+
+                        # Handle asset saving
+                        if event == "-SAVE_ASSET-":
+
+                            save_path = f"{os.path.join(image_save_directory, token_card.art_id)}-token.png"
+                            save_image_to_file(token_card.image, save_path, True)
+                            sg.popup_auto_close(
+                                "Asset saved successfully!", auto_close_duration=1
+                            )
+        else:
+            sg.popup_error("Please select a database first", auto_close_duration=3)
 
     # Handle decklist loading
     if event == "-LOAD_DECKLIST-":

@@ -134,8 +134,23 @@ def normalize_card_name_for_database(card_name_text: str) -> str:
     """
     return re.sub(r"[^a-zA-Z0-9/]", "", card_name_text)
 
+def create_search_tokens_window(database_cursor) -> sg.Window:
+    """
+    Create the search tokens window.
 
-# Test function for standalone execution
-if __name__ == "__main__":
-    test_cards = create_decklist_import_window()
-    print(test_cards)
+    Returns:
+        The search tokens window instance.
+    """
+    layout = [
+        [sg.Text("Search Tokens by Artist Name", font=("Segoe UI", 12))],
+        [sg.InputText(key="-SEARCH_INPUT-", size=(40, 1))],
+        [sg.Button("Search", key="-SEARCH_BUTTON-")],
+        [sg.Listbox(values=[], key="-RESULT_LIST-", size=(40, 10), enable_events=True)],
+        [sg.Button("Cancel", key="-CANCEL_BUTTON-")],
+
+    ]
+    window = sg.Window("Search Tokens", layout, modal=True)
+    
+
+    return window
+

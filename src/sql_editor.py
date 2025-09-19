@@ -6,6 +6,24 @@ from typing import List, Tuple
 from tkinter import Tk  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename, askdirectory
 
+def get_tokens_by_artist(artist_name: str, database_cursor: sqlite3.Cursor) -> List[Tuple[str, str]]:
+    """
+    Retrieve tokens from the database by artist name.
+
+    Args:
+        artist_name: The name of the artist to search for
+        database_cursor: SQLite database cursor
+
+    Returns:
+        A list of tuples containing card information (name, artist) for matching tokens
+    """
+    database_cursor.execute(
+        """
+        SELECT ArtistCredit,ArtId FROM Cards WHERE Rarity=0 AND ArtistCredit LIKE ?
+        """,
+        (f"%{artist_name}%",),
+    )
+    return database_cursor.fetchall()
 
 def swap_card_group_ids(
     first_grp_id: str,
