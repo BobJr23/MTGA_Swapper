@@ -4,7 +4,7 @@
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
-from src.load_preset import get_grp_id_info
+from src.sql_editor import get_grp_id_info, change_grp_id, json
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -203,7 +203,15 @@ main_window_layout = [
                         "Export Fonts", key="-EXPORT_FONTS-", size=(15, 1), pad=(5, 5)
                     ),
                 ],
-                [sg.Button("Search tokens", key="-SEARCH_TOKENS-", expand_x=True)],
+                [
+                    sg.Button("Search tokens", key="-SEARCH_TOKENS-", expand_x=True),
+                    sg.Button(
+                        "Load Changes Preset", key="-LOAD_PRESET-", expand_x=True
+                    ),
+                    sg.Button(
+                        "Export Changes Preset", key="-EXPORT_PRESET-", expand_x=True
+                    ),
+                ],
                 [
                     sg.Input(
                         "Database: "
@@ -318,6 +326,22 @@ while True:
             selected_sort_attribute,
         )
         main_window["-CARD_LIST-"].update(sorted_card_list)
+
+    if event == "-LOAD_PRESET-":
+        preset_path = open_file_dialog(
+            "Select your changes preset JSON file", "JSON files", "*.json"
+        )
+        change_grp_id(preset_path, database_cursor, database_connection)
+
+        sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=2)
+    if event == "-EXPORT_PRESET-":
+        with open(user_save_changes_path, "r") as changes_file:
+            changes_data = json.load(changes_file)
+
+        with open("exported_changes.json", "w") as export_file:
+            json.dump(changes_data, export_file)
+
+        sg.popup_auto_close("Exported changes to exported_changes.json")
 
     # Handle database and save directory selection
     if event == "-SELECT_DATABASE-":
@@ -545,7 +569,9 @@ while True:
             not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
         ]
 
-        if database_manager.unlock_parallax_style(grpid_list, database_cursor):
+        if database_manager.unlock_parallax_style(
+            grpid_list, database_cursor, database_connection, user_save_changes_path
+        ):
             sg.popup_auto_close("Parallax style unlocked successfully!")
         else:
             sg.popup_auto_close(
@@ -1249,6 +1275,7 @@ while True:
                         second_card_to_swap.grp_id,
                         database_cursor,
                         database_connection,
+                        user_save_changes_path,
                     )
                 else:
                     print("Swapping styles")
@@ -1257,6 +1284,7 @@ while True:
                         second_card_to_swap.grp_id,
                         database_cursor,
                         database_connection,
+                        user_save_changes_path,
                     )
 
                 sg.popup_ok("Cards swapped successfully!", auto_close_duration=2)
@@ -1484,6 +1512,7 @@ while True:
                             )
                             get_grp_id_info(
                                 [selected_card_data.grp_id],
+                                user_save_changes_path,
                                 database_cursor,
                                 database_connection,
                             )

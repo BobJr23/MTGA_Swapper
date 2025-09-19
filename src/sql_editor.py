@@ -5,8 +5,12 @@ import sqlite3
 from typing import List, Tuple
 from tkinter import Tk  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename, askdirectory
+from src.load_preset import get_grp_id_info, change_grp_id, json
 
-def get_tokens_by_artist(artist_name: str, database_cursor: sqlite3.Cursor) -> List[Tuple[str, str]]:
+
+def get_tokens_by_artist(
+    artist_name: str, database_cursor: sqlite3.Cursor
+) -> List[Tuple[str, str]]:
     """
     Retrieve tokens from the database by artist name.
 
@@ -25,11 +29,13 @@ def get_tokens_by_artist(artist_name: str, database_cursor: sqlite3.Cursor) -> L
     )
     return database_cursor.fetchall()
 
+
 def swap_card_group_ids(
     first_grp_id: str,
     second_grp_id: str,
     database_cursor: sqlite3.Cursor,
     database_connection: sqlite3.Connection,
+    save_path: str = "",
 ) -> None:
     """
     Swap the GrpId values between two cards in the database.
@@ -63,6 +69,12 @@ def swap_card_group_ids(
         """,
             [(second_grp_id, 0), (first_grp_id, 1)],
         )
+        get_grp_id_info(
+            [first_grp_id, second_grp_id],
+            save_path,
+            database_cursor,
+            database_connection,
+        )
     except sqlite3.OperationalError:
         print("You used the wrong file, relaunch this program and try again")
         exit()
@@ -74,6 +86,7 @@ def swap_card_styles(
     second_grp_id: str,
     database_cursor: sqlite3.Cursor,
     database_connection: sqlite3.Connection,
+    save_path: str = "",
 ) -> None:
     """
     Swap the ArtID and tag values between two cards in the database for styles.
@@ -117,6 +130,12 @@ def swap_card_styles(
             """,
             (first_card_tags, first_card_art_id, second_grp_id),
         )
+        get_grp_id_info(
+            [first_grp_id, second_grp_id],
+            save_path,
+            database_cursor,
+            database_connection,
+        )
 
     except sqlite3.OperationalError:
         print("You used the wrong file, relaunch this program and try again")
@@ -124,7 +143,12 @@ def swap_card_styles(
     database_connection.commit()
 
 
-def unlock_parallax_style(card_ids: List[str], database_cursor: sqlite3.Cursor) -> None:
+def unlock_parallax_style(
+    card_ids: List[str],
+    database_cursor: sqlite3.Cursor,
+    database_connection: sqlite3.Connection,
+    save_path: str = "",
+) -> None:
     """
     Unlock the parallax style for a list of card IDs.
 
@@ -146,6 +170,7 @@ def unlock_parallax_style(card_ids: List[str], database_cursor: sqlite3.Cursor) 
             [(card_id,) for card_id in card_ids],
         )
         database_cursor.connection.commit()
+        get_grp_id_info(card_ids, save_path, database_cursor, database_connection)
         return True
 
     except sqlite3.OperationalError:
