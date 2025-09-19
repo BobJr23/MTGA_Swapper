@@ -4,6 +4,7 @@
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
+from src.load_preset import get_grp_id_info
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -51,11 +52,18 @@ sg.theme("DarkBlue3")
 user_config_directory = Path.home() / ".mtga_swapper"
 user_config_directory.mkdir(exist_ok=True)
 user_config_file_path = user_config_directory / "config.json"
+user_save_changes_path = user_config_directory / "changes.json"
+
 
 # Create default config file if it doesn't exist
 if not user_config_file_path.exists():
     with open(get_resource_path("config.json"), "r") as source_config:
         with open(user_config_file_path, "w") as destination_config:
+            destination_config.write(source_config.read())
+
+if not user_save_changes_path.exists():
+    with open(get_resource_path("changes.json"), "r") as source_config:
+        with open(user_save_changes_path, "w") as destination_config:
             destination_config.write(source_config.read())
 
 # Initialize variables for database connection
@@ -1332,6 +1340,12 @@ while True:
                                 "UPDATE Cards SET Tags = ? WHERE GrpId = ?",
                                 (new_tag, selected_card_data.grp_id),
                             )
+                            get_grp_id_info(
+                                [selected_card_data.grp_id],
+                                database_cursor,
+                                database_connection,
+                            )
+
                             database_connection.commit()
 
                     if editor_event == "-SEARCH_ALTERNATES-":
