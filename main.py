@@ -1298,61 +1298,52 @@ while True:
         selected_card_data = MTGACard(
             *values["-CARD_LIST-"][0].split(),
         )
-        if selected_card_data.name not in (
-            "island",
-            "forest",
-            "mountain",
-            "plains",
-            "swamp",
-        ):
-            database_cursor.execute(
-                """
-                SELECT TitleId
-                FROM Cards
-                WHERE GrpId = ?
-            """,
-                (selected_card_data.grp_id,),
-            )
-            row = database_cursor.fetchone()
 
-            if row is None:
-                print("Row not found.")
-            else:
-                title_id = row[0]
+        database_cursor.execute(
+            """
+            SELECT TitleId
+            FROM Cards
+            WHERE GrpId = ?
+        """,
+            (selected_card_data.grp_id,),
+        )
+        row = database_cursor.fetchone()
 
-            alternates = database_cursor.execute(
-                """
-                    SELECT 
-                        ExpansionCode,
-                        ArtSize,
-                        GrpId,
-                        ArtId
-                    FROM Cards
-                    WHERE 
-                        TitleId = ?
-                        AND ArtId != ?
-                """,
-                (title_id, selected_card_data.art_id),
-            ).fetchall()
-
-            alternates = [MTGACard(selected_card_data.name, *row) for row in alternates]
-
-            alternate_display = [
-                selected_card_data.name + " (" + card.set_code + ") - alternate"
-                for card in alternates
-            ]
-            alternates.insert(0, selected_card_data)
-            alternate_display.insert(
-                0,
-                selected_card_data.name
-                + " ("
-                + selected_card_data.set_code
-                + ") - selected",
-            )
-
+        if row is None:
+            print("Row not found.")
         else:
-            # Handle case where selected card is a basic land
-            alternates = []
+            title_id = row[0]
+
+        alternates = database_cursor.execute(
+            """
+                SELECT 
+                    ExpansionCode,
+                    ArtSize,
+                    GrpId,
+                    ArtId
+                FROM Cards
+                WHERE 
+                    TitleId = ?
+                    AND ArtId != ?
+            """,
+            (title_id, selected_card_data.art_id),
+        ).fetchall()
+
+        alternates = [MTGACard(selected_card_data.name, *row) for row in alternates]
+
+        alternate_display = [
+            selected_card_data.name + " (" + card.set_code + ") - alternate"
+            for card in alternates
+        ]
+        alternates.insert(0, selected_card_data)
+        alternate_display.insert(
+            0,
+            selected_card_data.name
+            + " ("
+            + selected_card_data.set_code
+            + ") - selected",
+        )
+
         # Ensure art_id is properly formatted (6 digits with leading zeros)
         if len(selected_card_data.art_id) < 6:
             selected_card_data.art_id = selected_card_data.art_id.zfill(6)
