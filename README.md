@@ -126,6 +126,12 @@ Locate your Arena install folder and choose the appropriate `Raw_CardDatabase...
 
 **(Default installation path is ```C:\Program Files (x86)\Wizards of the Coast```)**
 
+or ```C:\Program Files (x86)\Steam``` 
+
+or ```C:\Program Files\Epic Games``` 
+
+depending on where you installed MTG Arena from 
+
 ![Database Selection](https://github.com/BobJr23/MTGA_Swapper/assets/98911103/d76fb165-cb32-447a-a27b-70719b292c9c)
 
 
