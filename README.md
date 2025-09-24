@@ -9,7 +9,11 @@ Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, includ
 
 Unlock any card styles in the game, including parallax and speical event styles. (See table of contents section 11)
 
-**✅ Fixed major bugs – fully working**
+**Cool New Features:**
+
+- You can unlock mass unlock parallax styles for any number of cards with one click
+- You can export your changes to a file and then load it after updates or share it for others to use.
+- You can unlock any unique card style/border. See [11. Unlock card styles](#11-unlock-card-styles) for reference
 
 **NEW: exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
 
@@ -35,6 +39,7 @@ Report any issues in Feedback & Support
   - [9. Import Decklists](#9-import-decklists)
   - [10. Export Fonts](#10-export-fonts)
   - [11. Unlock card styles](#11-unlock-card-styles)
+  - [12. Export your changes](#12-export-your-changes)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -228,6 +233,10 @@ See the [list of working tags](https://github.com/BobJr23/MTGA_Swapper/blob/main
 1696804317 is the parallax style most cards have for 200-1200 gems which show the card "moving" and being borderless
    
 ---
+
+### 12. Export Your Changes
+
+After every game update, you may notice that your changes disappear. This is fine, just press the "Export Changes Preset" button on the main page to save your changes, and then "Load Changes Preset" to automatically make your changes.
 
 ## ✨ Final In-Game Results
 
