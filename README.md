@@ -230,6 +230,8 @@ Change avatars, sleeves, and more using the same interface.
    
 See the [list of working tags](https://github.com/BobJr23/MTGA_Swapper/blob/main/tags.md)
 
+To remove styling effects, set the tag to 0
+
 1696804317 is the parallax style most cards have for 200-1200 gems which show the card "moving" and being borderless
    
 ---
