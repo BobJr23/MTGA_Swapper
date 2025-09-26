@@ -3,11 +3,11 @@ import sqlite3
 from pathlib import Path
 
 
-def get_grp_id_info(
+def save_grp_id_info(
     grp_id: list[str], user_save_changes_path: str, cursor, connection
 ) -> None:
     """
-    Load the saved changes for a specific GrpId from the user's save changes file.
+    Save the information of a list of GrpIds to a JSON file.
 
     Args:
         grp_id: The Group ID of the card to load changes for
@@ -41,7 +41,7 @@ def get_grp_id_info(
         formatted_results[grp_id_value] = row_dict
     connection.commit()
     with open(user_save_changes_path, "w") as output_file:
-        json.dump(formatted_results, output_file)
+        json.dump(formatted_results, output_file, indent=4)
     output_file.close()
 
 
@@ -50,9 +50,14 @@ def change_grp_id(
 ) -> None:
     if json_manual:
         grp_id = json_manual.pop("GrpId")
-
-        # Update the database with the new values for the specified GrpId
+        localizations = json_manual.pop("Localizations_enUS", None)
         set_values = ", ".join([f"{col} = ?" for col in json_manual.keys()])
+        if localizations:
+            cursor.executemany(
+                f"UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
+                [(text, loc_id) for loc_id, text in localizations.items()],
+            )
+
         cursor.execute(
             f"UPDATE Cards SET {set_values} WHERE GrpId = ?",
             list(json_manual.values()) + [grp_id],
@@ -60,16 +65,43 @@ def change_grp_id(
     else:
         with open(change_path, "r") as changes_file:
             changes_data = json.load(changes_file)
+        changes_file.close()
 
         for grp_id, new_values in changes_data.items():
+            localizations = new_values.pop("Localizations_enUS", None)
             # Update the database with the new values for the specified GrpId
             set_values = ", ".join([f"{col} = ?" for col in new_values.keys()])
             cursor.execute(
                 f"UPDATE Cards SET {set_values} WHERE GrpId = ?",
                 list(new_values.values()) + [grp_id],
             )
+            if localizations:
+                cursor.executemany(
+                    f"UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
+                    [(text, loc_id) for loc_id, text in localizations.items()],
+                )
 
     connection.commit()
+
+
+def save_loc_id_info(
+    user_save_changes_path: str,
+    loc_id: str,
+    new_loc: str,
+    grp_id: str | None = None,
+) -> dict[str, str] | dict:
+
+    with open(user_save_changes_path, "r") as changes_file:
+        changes_data = json.load(changes_file)
+    changes_file.close()
+    changes_data[grp_id].setdefault("Localizations_enUS", {})
+
+    changes_data[grp_id]["Localizations_enUS"][loc_id] = new_loc
+
+    with open(user_save_changes_path, "w") as output_file:
+        json.dump(changes_data, output_file, indent=4)
+    output_file.close()
+    return changes_data
 
 
 if __name__ == "__main__":

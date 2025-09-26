@@ -4,8 +4,14 @@
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
-from src.sql_editor import get_grp_id_info, change_grp_id, fetch_all_data, json
-from src.load_preset import get_grp_id_info, change_grp_id
+from src.sql_editor import (
+    save_grp_id_info,
+    change_grp_id,
+    fetch_all_data,
+    save_loc_id_info,
+    json,
+)
+
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -340,7 +346,7 @@ while True:
             changes_data = json.load(changes_file)
 
         with open("exported_changes.json", "w") as export_file:
-            json.dump(changes_data, export_file)
+            json.dump(changes_data, export_file, indent=4)
 
         sg.popup_auto_close("Exported changes to exported_changes.json")
 
@@ -402,7 +408,7 @@ while True:
             with open(user_config_file_path, "w") as config_file:
                 user_config["SavePath"] = str(Path(image_save_directory).as_posix())
                 user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
-                config_file.write(sg.json.dumps(user_config))
+                config_file.write(sg.json.dumps(user_config, indent=4))
 
         # Configure Unity version and update GUI
         configure_unity_version(database_file_path, "2022.3.42f1")
@@ -444,11 +450,9 @@ while True:
                         )
                 elif event_token == "-RESULT_LIST-":
                     selected_token = values_token["-RESULT_LIST-"][0]
-                    print(selected_token)
                     token_card = MTGACard(
                         "", "", "", "", selected_token.split(" - ")[1]
                     )
-                    print(token_card.art_id)
 
                     image_data_list, texture_data_list, matching_file = (
                         get_card_texture_data(
@@ -1126,7 +1130,6 @@ while True:
                 if card[:15].strip() in cards_from_imported_deck
             ]
             displayed_cards = filtered_cards_from_deck
-            print(cards_from_imported_deck)
             if filtered_cards_from_deck:
                 main_window["-CARD_LIST-"].update(filtered_cards_from_deck)
             filtered_search_results = filtered_cards_from_deck
@@ -1264,13 +1267,13 @@ while True:
                 and second_card_to_swap
             ):
                 # Perform the actual card swap in the database
-                print(first_card_to_swap.grp_id, second_card_to_swap.grp_id)
+
                 if (
                     first_card_to_swap.name != second_card_to_swap.name
                     or first_card_to_swap.name
                     in ("island", "forest", "mountain", "plains", "swamp")
                 ):
-                    print("Swapping cards")
+
                     database_manager.swap_card_group_ids(
                         first_card_to_swap.grp_id,
                         second_card_to_swap.grp_id,
@@ -1573,14 +1576,18 @@ while True:
                                         for key in detail_values
                                         if key.startswith("-DETAIL-")
                                     }
-                                    print(new_values)
                                     change_grp_id(
                                         "",
                                         database_cursor,
                                         database_connection,
                                         json_manual=new_values,
                                     )
-
+                                    save_grp_id_info(
+                                        [selected_card_data.grp_id],
+                                        user_save_changes_path,
+                                        database_cursor,
+                                        database_connection,
+                                    )
                                     sg.popup_ok(
                                         "Details updated successfully!",
                                         auto_close_duration=2,
@@ -1593,7 +1600,6 @@ while True:
                                         for key in detail_values
                                         if key.startswith("-Loc_DETAIL-")
                                     }
-                                    print(new_loc_values)
                                     for loc_key, loc_value in new_loc_values.items():
                                         if loc_key in (
                                             "TitleId",
@@ -1601,11 +1607,16 @@ while True:
                                             "TypeTextId",
                                             "SubtypeTextId",
                                         ):
-                                            print("replacing", loc_key, loc_value)
                                             database_manager.set_localization_from_id(
                                                 database_cursor,
                                                 details[loc_key],
                                                 loc_value,
+                                            )
+                                            save_loc_id_info(
+                                                user_save_changes_path,
+                                                details[loc_key],
+                                                loc_value,
+                                                selected_card_data.grp_id,
                                             )
 
                                     break
@@ -1616,7 +1627,6 @@ while True:
                             "SELECT Tags FROM Cards WHERE GrpId = ?",
                             (selected_card_data.grp_id,),
                         ).fetchone()[0]
-                        print(current_tags)
 
                         new_tag = sg.popup_get_text(
                             "Edit Tags (Add 1696804317 to the tags (comma separated if needed) to use the animated style borderless)",
@@ -1631,7 +1641,7 @@ while True:
                                 "UPDATE Cards SET Tags = ? WHERE GrpId = ?",
                                 (new_tag, selected_card_data.grp_id),
                             )
-                            get_grp_id_info(
+                            save_grp_id_info(
                                 [selected_card_data.grp_id],
                                 user_save_changes_path,
                                 database_cursor,
@@ -1689,7 +1699,6 @@ while True:
                                 texture_width, texture_height = texture_data_list[
                                     texture_index
                                 ].image.size
-                                print(len(image_data_list))
                             else:
                                 # Handle case where no textures are found
                                 card_textures = None
@@ -1747,7 +1756,6 @@ while True:
 
                     # Handle alpha channel removal
                     if editor_event == "-REMOVE_ALPHA-":
-                        print(editor_values["-REMOVE_ALPHA-"])
                         processed_image = remove_alpha_channel(
                             texture_data_list[texture_index].image,
                             editor_values["-REMOVE_ALPHA-"],

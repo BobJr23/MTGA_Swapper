@@ -5,7 +5,7 @@ import sqlite3
 from typing import List, Tuple
 from tkinter import Tk  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename, askdirectory
-from src.load_preset import get_grp_id_info, change_grp_id, json
+from src.load_preset import save_grp_id_info, change_grp_id, save_loc_id_info, json
 
 
 def get_tokens_by_artist(
@@ -69,7 +69,7 @@ def swap_card_group_ids(
         """,
             [(second_grp_id, 0), (first_grp_id, 1)],
         )
-        get_grp_id_info(
+        save_grp_id_info(
             [first_grp_id, second_grp_id],
             save_path,
             database_cursor,
@@ -130,7 +130,7 @@ def swap_card_styles(
             """,
             (first_card_tags, first_card_art_id, second_grp_id),
         )
-        get_grp_id_info(
+        save_grp_id_info(
             [first_grp_id, second_grp_id],
             save_path,
             database_cursor,
@@ -170,7 +170,7 @@ def unlock_parallax_style(
             [(card_id,) for card_id in card_ids],
         )
         database_cursor.connection.commit()
-        get_grp_id_info(card_ids, save_path, database_cursor, database_connection)
+        save_grp_id_info(card_ids, save_path, database_cursor, database_connection)
         return True
 
     except sqlite3.OperationalError:
@@ -264,7 +264,7 @@ def set_localization_from_id(
     database_cursor: sqlite3.Cursor, loc_id: str, new_text: str, language: str = "enUS"
 ) -> None:
     """
-    Update localized text in the LocalizedText table by LocId and language.
+    Update localized text in the Localizations table by LocId and language.
 
     Args:
         database_cursor: SQLite database cursor
