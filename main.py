@@ -4,7 +4,8 @@
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
-from src.sql_editor import get_grp_id_info, change_grp_id, json
+from src.sql_editor import get_grp_id_info, change_grp_id, fetch_all_data, json
+from src.load_preset import get_grp_id_info, change_grp_id
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -1394,52 +1395,57 @@ while True:
                 # Create card editor window layout
                 card_editor_layout = [
                     [
-                        sg.Button("Change image", key="-CHANGE_IMAGE-"),
-                        (
-                            sg.Button("Previous in bundle", key="-PREVIOUS-")
-                            if len(card_textures) > 1
-                            else sg.Text("")
-                        ),
-                        (
-                            sg.Button("Next in bundle", key="-NEXT-")
-                            if len(card_textures) > 1
-                            else sg.Text("")
-                        ),
-                        sg.Button("Set to Swap 1", key="-SET_SWAP_1-"),
-                        sg.Button("Set to Swap 2", key="-SET_SWAP_2-"),
-                        sg.Button("Adjust style tags", key="-ADJUST_STYLE_TAGS-"),
-                        sg.Combo(
-                            values=alternate_display,
-                            default_value=(
-                                alternate_display[0] if alternate_display else ""
+                        [
+                            sg.Button("Change image", key="-CHANGE_IMAGE-"),
+                            (
+                                sg.Button("Previous in bundle", key="-PREVIOUS-")
+                                if len(card_textures) > 1
+                                else sg.Text("")
                             ),
-                            key="-SEARCH_ALTERNATES-",
-                            readonly=True,
-                            enable_events=True,
-                        ),
-                        sg.Button("Set aspect ratio to", key="-SET_ASPECT_RATIO-"),
-                        sg.Input(
-                            "3" if selected_card_data.art_type == "1" else "11",
-                            key="-ASPECT_WIDTH-",
-                            size=(3, 1),
-                        ),
-                        sg.Input(
-                            "4" if selected_card_data.art_type == "1" else "8",
-                            key="-ASPECT_HEIGHT-",
-                            size=(3, 1),
-                        ),
-                        sg.Checkbox(
-                            "Remove Alpha (recommended)",
-                            key="-REMOVE_ALPHA-",
-                            default=True,
-                            enable_events=True,
-                        ),
-                        sg.Button("Save", key="-SAVE_IMAGE-"),
-                        sg.Button(
-                            "Upscale",
-                            key="-UPSCALE_IMAGE-",
-                            disabled=not is_upscaling_available,
-                        ),
+                            (
+                                sg.Button("Next in bundle", key="-NEXT-")
+                                if len(card_textures) > 1
+                                else sg.Text("")
+                            ),
+                            sg.Button("Set to Swap 1", key="-SET_SWAP_1-"),
+                            sg.Button("Set to Swap 2", key="-SET_SWAP_2-"),
+                            sg.Button("Adjust style tags", key="-ADJUST_STYLE_TAGS-"),
+                            sg.Combo(
+                                values=alternate_display,
+                                default_value=(
+                                    alternate_display[0] if alternate_display else ""
+                                ),
+                                key="-SEARCH_ALTERNATES-",
+                                readonly=True,
+                                enable_events=True,
+                            ),
+                        ],
+                        [
+                            sg.Button("Edit details", key="-EDIT_DETAILS-"),
+                            sg.Button("Set aspect ratio to", key="-SET_ASPECT_RATIO-"),
+                            sg.Input(
+                                "3" if selected_card_data.art_type == "1" else "11",
+                                key="-ASPECT_WIDTH-",
+                                size=(3, 1),
+                            ),
+                            sg.Input(
+                                "4" if selected_card_data.art_type == "1" else "8",
+                                key="-ASPECT_HEIGHT-",
+                                size=(3, 1),
+                            ),
+                            sg.Checkbox(
+                                "Remove Alpha (recommended)",
+                                key="-REMOVE_ALPHA-",
+                                default=True,
+                                enable_events=True,
+                            ),
+                            sg.Button("Save", key="-SAVE_IMAGE-"),
+                            sg.Button(
+                                "Upscale",
+                                key="-UPSCALE_IMAGE-",
+                                disabled=not is_upscaling_available,
+                            ),
+                        ],
                     ],
                     [
                         sg.Image(
@@ -1480,6 +1486,130 @@ while True:
                             source=display_texture_bytes
                         )
                         selected_card_data.image = image_data_list[texture_index]
+
+                    if editor_event == "-EDIT_DETAILS-":
+                        details = fetch_all_data(
+                            database_cursor, selected_card_data.grp_id
+                        )
+                        if details:
+                            detail_layout = []
+                            for key, value in details.items():
+                                detail_layout.append(
+                                    [
+                                        sg.Text(key, size=(15, 1)),
+                                        sg.Input(value, key=f"-DETAIL-{key}-"),
+                                    ]
+                                )
+                            # Split detail_layout into two columns of equal length
+                            num_fields = len(detail_layout)
+                            mid_index = (num_fields + 1) // 2
+
+                            left_column = detail_layout[:mid_index]
+                            right_column = detail_layout[mid_index:]
+
+                            # Add the Save Details button below both columns
+                            columns_layout = [
+                                [
+                                    sg.Button("Save Details", key="-SAVE_DETAILS-"),
+                                    sg.Text(
+                                        "Warning: Make sure you know what you're doing!",
+                                        size=(40, 1),
+                                    ),
+                                ],
+                                [
+                                    sg.Text("Name", size=(15, 1)),
+                                    sg.Input(
+                                        database_manager.get_localization_from_id(
+                                            database_cursor, details["TitleId"]
+                                        ),
+                                        key=f"-Loc_DETAIL-TitleId-",
+                                    ),
+                                    sg.Text("Flavor Text", size=(15, 1)),
+                                    sg.Input(
+                                        database_manager.get_localization_from_id(
+                                            database_cursor, details["FlavorTextId"]
+                                        ),
+                                        key=f"-Loc_DETAIL-FlavorTextId-",
+                                    ),
+                                    # sg.Text("Type", size=(15, 1)),
+                                    # sg.Input(
+                                    #     database_manager.get_localization_from_id(
+                                    #         database_cursor, details["TypeTextId"]
+                                    #     ),
+                                    #     key=f"-Loc_DETAIL-{key}-",
+                                    # ),
+                                    # sg.Text("Subtype", size=(15, 1)),
+                                    # sg.Input(
+                                    #     database_manager.get_localization_from_id(
+                                    #         database_cursor, details["SubtypeTextId"]
+                                    #     ),
+                                    #     key=f"-Loc_DETAIL-{key}-",
+                                    # ),
+                                ],
+                                [
+                                    sg.Column(left_column, vertical_alignment="top"),
+                                    sg.Column(right_column, vertical_alignment="top"),
+                                ],
+                            ]
+
+                            detail_window = sg.Window(
+                                f"Editing details for {selected_card_data.name}",
+                                columns_layout,
+                                modal=True,
+                                grab_anywhere=True,
+                                relative_location=(0, -50),
+                                finalize=True,
+                            )
+
+                            while True:
+                                detail_event, detail_values = detail_window.read()
+                                if detail_event in (sg.WIN_CLOSED, "Exit"):
+                                    break
+                                if detail_event == "-SAVE_DETAILS-":
+                                    new_values = {
+                                        key.replace("-DETAIL-", "")[:-1]: detail_values[
+                                            key
+                                        ]
+                                        for key in detail_values
+                                        if key.startswith("-DETAIL-")
+                                    }
+                                    print(new_values)
+                                    change_grp_id(
+                                        "",
+                                        database_cursor,
+                                        database_connection,
+                                        json_manual=new_values,
+                                    )
+
+                                    sg.popup_ok(
+                                        "Details updated successfully!",
+                                        auto_close_duration=2,
+                                    )
+
+                                    new_loc_values = {
+                                        key.replace("-Loc_DETAIL-", "")[
+                                            :-1
+                                        ]: detail_values[key]
+                                        for key in detail_values
+                                        if key.startswith("-Loc_DETAIL-")
+                                    }
+                                    print(new_loc_values)
+                                    for loc_key, loc_value in new_loc_values.items():
+                                        if loc_key in (
+                                            "TitleId",
+                                            "FlavorTextId",
+                                            "TypeTextId",
+                                            "SubtypeTextId",
+                                        ):
+                                            print("replacing", loc_key, loc_value)
+                                            database_manager.set_localization_from_id(
+                                                database_cursor,
+                                                details[loc_key],
+                                                loc_value,
+                                            )
+
+                                    break
+                            detail_window.close()
 
                     if editor_event == "-ADJUST_STYLE_TAGS-":
                         current_tags = database_cursor.execute(

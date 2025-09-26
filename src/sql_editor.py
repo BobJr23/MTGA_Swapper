@@ -215,6 +215,69 @@ def create_database_connection(
     return database_cursor, database_connection, database_file_path
 
 
+def fetch_all_data(database_cursor: sqlite3.Cursor, grp_id: str) -> List[Tuple]:
+    """
+    Fetch all data from the Cards table for a specific GrpId.
+
+    Args:
+        database_cursor: SQLite database cursor
+
+    Returns:
+        List of tuples containing all rows from the Cards table
+    """
+    database_cursor.execute("SELECT * FROM Cards WHERE GrpId=?", (grp_id,))
+    column_names = [description[0] for description in database_cursor.description]
+
+    # Fetch all results and format with column names
+    row = database_cursor.fetchone()
+
+    if row:
+        row_dict = {col_name: value for col_name, value in zip(column_names, row)}
+    else:
+        return {}
+    return row_dict
+
+
+def get_localization_from_id(
+    database_cursor: sqlite3.Cursor, loc_id, language: str = "enUS"
+) -> str:
+    """
+    Retrieve localized text from the LocalizedText table by LocId and language.
+
+    Args:
+        database_cursor: SQLite database cursor
+        loc_id: The LocId to search for
+        language: The language code (default is "enUS")
+
+    Returns:
+        The localized text if found, otherwise an empty string
+    """
+    database_cursor.execute(
+        f"SELECT Loc FROM Localizations_{language} WHERE LocId=?",
+        (str(loc_id),),
+    )
+    result = database_cursor.fetchone()
+    return result[0] if result else ""
+
+
+def set_localization_from_id(
+    database_cursor: sqlite3.Cursor, loc_id: str, new_text: str, language: str = "enUS"
+) -> None:
+    """
+    Update localized text in the LocalizedText table by LocId and language.
+
+    Args:
+        database_cursor: SQLite database cursor
+        loc_id: The LocId to search for
+        new_text: The new localized text to set
+    """
+    database_cursor.execute(
+        f"UPDATE Localizations_{language} SET Loc=? WHERE LocId=?",
+        (new_text, loc_id),
+    )
+    database_cursor.connection.commit()
+
+
 # Debug/testing code (commented out for production)
 # if __name__ == "__main__":
 #     cur, con, f = create_database_connection()

@@ -45,17 +45,29 @@ def get_grp_id_info(
     output_file.close()
 
 
-def change_grp_id(change_path: str, cursor, connection) -> None:
-    with open(change_path, "r") as changes_file:
-        changes_data = json.load(changes_file)
+def change_grp_id(
+    change_path: str, cursor, connection, json_manual: dict | None = None
+) -> None:
+    if json_manual:
+        grp_id = json_manual.pop("GrpId")
 
-    for grp_id, new_values in changes_data.items():
         # Update the database with the new values for the specified GrpId
-        set_values = ", ".join([f"{col} = ?" for col in new_values.keys()])
+        set_values = ", ".join([f"{col} = ?" for col in json_manual.keys()])
         cursor.execute(
             f"UPDATE Cards SET {set_values} WHERE GrpId = ?",
-            list(new_values.values()) + [grp_id],
+            list(json_manual.values()) + [grp_id],
         )
+    else:
+        with open(change_path, "r") as changes_file:
+            changes_data = json.load(changes_file)
+
+        for grp_id, new_values in changes_data.items():
+            # Update the database with the new values for the specified GrpId
+            set_values = ", ".join([f"{col} = ?" for col in new_values.keys()])
+            cursor.execute(
+                f"UPDATE Cards SET {set_values} WHERE GrpId = ?",
+                list(new_values.values()) + [grp_id],
+            )
 
     connection.commit()
 
