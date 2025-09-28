@@ -6,3 +6,4 @@ output
 dist
 build
 *.spec
+exported_changes.json
