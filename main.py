@@ -342,7 +342,7 @@ while True:
         )
         change_grp_id(preset_path, database_cursor, database_connection)
 
-        sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=2)
+        sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=1)
     if event == "-EXPORT_PRESET-":
         with open(user_save_changes_path, "r") as changes_file:
             changes_data = json.load(changes_file)
@@ -350,7 +350,9 @@ while True:
         with open("exported_changes.json", "w") as export_file:
             json.dump(changes_data, export_file, indent=4)
 
-        sg.popup_auto_close("Exported changes to exported_changes.json")
+        sg.popup_auto_close(
+            "Exported changes to exported_changes.json", auto_close_duration=0.5
+        )
 
     # Handle database and save directory selection
     if event == "-SELECT_DATABASE-":

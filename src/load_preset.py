@@ -26,7 +26,6 @@ def save_grp_id_info(
 
     # Fetch all results and format with column names
     rows = cursor.fetchall()
-    formatted_results = {}
 
     for row in rows:
         # Create a dictionary for this row with column names as keys
@@ -38,10 +37,10 @@ def save_grp_id_info(
         )  # Remove GrpId from the dict and get its value
 
         # Use GrpId as the key, and the remaining columns as the value
-        formatted_results[grp_id_value] = row_dict
+        changes_data[grp_id_value] = row_dict
     connection.commit()
     with open(user_save_changes_path, "w") as output_file:
-        json.dump(formatted_results, output_file, indent=4)
+        json.dump(changes_data, output_file, indent=4)
     output_file.close()
 
 
