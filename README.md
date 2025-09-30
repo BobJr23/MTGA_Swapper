@@ -27,8 +27,9 @@ If you have changes that you want to save so it doesn't get wiped by updates, do
 
 ___
 
-Report any issues in Feedback & Support
+Got questions, ideas, or want to chat? Reach out on Discord:
 
+**`_bobjr_`**
 
 ---
 
