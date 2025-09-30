@@ -7,3 +7,4 @@ dist
 build
 *.spec
 exported_changes.json
+.vscode/

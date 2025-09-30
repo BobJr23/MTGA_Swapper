@@ -152,6 +152,7 @@ if (
                 all_cards_formatted = ["Select a database first"]
 
             displayed_cards = all_cards_formatted
+            filtered_search_results = displayed_cards
             asset_bundle_directory = (
                 os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
             )
@@ -273,7 +274,12 @@ main_window_layout = [
                     sg.Button(
                         "Unlock Parallax Style for all cards in the list below",
                         key="-UNLOCK_PARALLAX-",
-                    )
+                    ),
+                    sg.Button(
+                        "Backup changes for all cards in the list below",
+                        key="-LOAD_OLD_CHANGES-",
+                        expand_x=True,
+                    ),
                 ],
                 [
                     sg.Text("Sort by:"),
@@ -586,6 +592,29 @@ while True:
             sg.popup_auto_close(
                 "Failed to unlock parallax style, ensure that the database is not open in another program."
             )
+
+    if event == "-LOAD_OLD_CHANGES-":
+        grpid_list = [
+            card.split()[3]
+            for card in filtered_search_results
+            if card.split()[0]
+            not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
+        ]
+        save_grp_id_info(
+            grpid_list,
+            user_save_changes_path,
+            database_cursor,
+            database_connection,
+        )
+        with open(user_save_changes_path, "r") as changes_file:
+            changes_data = json.load(changes_file)
+
+        with open("exported_changes.json", "w") as export_file:
+            json.dump(changes_data, export_file, indent=4)
+
+        sg.popup_auto_close(
+            "Exported changes to exported_changes.json", auto_close_duration=0.5
+        )
 
     # Handle font export functionality
     if event == "-EXPORT_FONTS-":
