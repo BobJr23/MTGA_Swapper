@@ -16,6 +16,9 @@ ___
 - You can unlock any unique card style/border. See [11. Unlock card styles](#11-unlock-card-styles) for reference
 ___
 **exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
+
+
+[Nexus mods mirror](https://www.nexusmods.com/magicthegatheringarena/mods/6) (less frequently updated)
 ___
 
 **IMPORTANT**
