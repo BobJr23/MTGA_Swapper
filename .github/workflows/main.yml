@@ -47,9 +47,6 @@ jobs:
         id: update_json
         shell: bash
         run: |
-          # Calculate SHA256 checksums
-          SHA_MAIN=$(sha256sum dist/MTGA_Swapper.exe | cut -d ' ' -f1)
-          SHA_NOUPSCALE=$(sha256sum dist/MTGA_Swapper_NoUpscale.exe | cut -d ' ' -f1)
 
           # Write JSON
           cat <<EOF > update.json
