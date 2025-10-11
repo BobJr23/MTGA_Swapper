@@ -316,31 +316,24 @@ def perform_set_swap(
                 img = Image.open(image_path)
 
                 if is_saga:
-                    target_width, target_height = (
-                        main_art_texture.m_Width,
-                        main_art_texture.m_Height,
-                    )
                     original_width, original_height = img.size
-                    new_height = int(target_width * (original_height / original_width))
 
-                    if new_height > target_height:
-                        new_height = target_height
-                        target_width = int(
-                            new_height * (original_width / original_height)
-                        )
+                    # Crop vertically in half (take right side)
+                    crop_left = original_width // 2
+                    crop_right = original_width
 
-                    resized_img = img.resize(
-                        (target_width, new_height), Image.Resampling.LANCZOS
-                    )
-                    final_img = Image.new(
-                        "RGB",
-                        (main_art_texture.m_Width, main_art_texture.m_Height),
-                        (0, 0, 0),
-                    )
-                    paste_x = (main_art_texture.m_Width - target_width) // 2
-                    paste_y = (main_art_texture.m_Height - new_height) // 2
-                    final_img.paste(resized_img, (paste_x, paste_y))
-                    img = final_img
+                    # Crop some off top and bottom (adjust these percentages as needed)
+                    top_crop_percent = 0.12
+                    bottom_crop_percent = 0.17
+                    right_crop_percent = 0.92
+
+                    crop_top = int(original_height * top_crop_percent)
+                    crop_bottom = int(original_height * (1 - bottom_crop_percent))
+                    crop_right = int(original_width * right_crop_percent)
+
+                    # Perform the crop: (left, top, right, bottom)
+                    img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
+                    img = img.resize((256, 512), Image.LANCZOS)
 
                 main_art_texture.image = img
                 main_art_texture.save()
@@ -353,14 +346,6 @@ def perform_set_swap(
                 env_cards = UnityPy.load(str(cards_bundle_path))
             else:
                 env_cards = env_art
-
-            for obj in env_cards.objects:
-                if obj.type.name == "TextAsset":
-                    data = obj.read()
-                    if data.m_Name == f"Card_Title_{card_id}":
-                        data.text = target_name
-                        data.save()
-                        break
 
             with open(cards_bundle_path, "wb") as f:
                 f.write(env_cards.file.save())
