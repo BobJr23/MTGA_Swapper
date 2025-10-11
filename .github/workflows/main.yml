@@ -22,43 +22,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install Base dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements_noupscale.txt
-          pip install pyinstaller
-
-      - name: Build EXE with PyInstaller No Upscaling
-        shell: pwsh
-        run: |
-          pyinstaller --noconfirm --onefile --console `
-            --icon "swaplogo.ico" `
-            --name "MTGA_Swapper_NoUpscale" `
-            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
-            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
-            --add-data "config.json;." `
-            --add-data "changes.json;." `
-            main.py
-
-      - name: Install Upscaling dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Build EXE with PyInstaller Upscaling
-        shell: pwsh
-        run: |
-          pyinstaller --noconfirm --onefile --console `
-            --icon "swaplogo.ico" `
-            --name "MTGA_Swapper" `
-            --add-data "modelscsr.onnx;." `
-            --add-data "modelesrgan2.onnx;." `
-            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
-            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
-            --add-data "config.json;." `
-            --add-data "changes.json;." `
-            main.py
-
+      
       - name: Extract tag and body from commit message
         id: extract_tag
         shell: bash
@@ -79,14 +43,87 @@ jobs:
           echo "tag_name=$TAG" >> $GITHUB_OUTPUT
           echo "release_body=$BODY" >> $GITHUB_OUTPUT
 
+      - name: Generate update.json with version and checksums
+        id: update_json
+        shell: bash
+        run: |
+          # Calculate SHA256 checksums
+          SHA_MAIN=$(sha256sum dist/MTGA_Swapper.exe | cut -d ' ' -f1)
+          SHA_NOUPSCALE=$(sha256sum dist/MTGA_Swapper_NoUpscale.exe | cut -d ' ' -f1)
+
+          # Write JSON
+          cat <<EOF > update.json
+          {
+            "version": "${{ steps.extract_tag.outputs.tag_name }}",
+            "build_time": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "downloads": {
+              "upscale": {
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ steps.extract_tag.outputs.tag_name }}/MTGA_Swapper.exe",
+                "checksum": "$SHA_MAIN"
+              },
+              "no_upscale": {
+                "url": "https://github.com/${{ github.repository }}/releases/download/${{ steps.extract_tag.outputs.tag_name }}/MTGA_Swapper_NoUpscale.exe",
+                "checksum": "$SHA_NOUPSCALE"
+              }
+            }
+          }
+          EOF
+
+          echo "✅ update.json created:"
+          cat update.json
+
+      - name: Commit update.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add update.json
+          git commit -m "Update update.json for ${{ steps.extract_tag.outputs.tag_name }}"
+          git push origin main
+
+      - name: Install Base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_noupscale.txt
+          pip install pyinstaller
+
+      - name: Build EXE with PyInstaller No Upscaling
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onefile --console `
+            --icon "swaplogo.ico" `
+            --name "MTGA_Swapper_NoUpscale" `
+            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
+            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
+            --add-data "config.json;." `
+            --add-data "changes.json;." `
+            --add-data "update.json;." `
+            main.py
+
+      - name: Install Upscaling dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Build EXE with PyInstaller Upscaling
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onefile --console `
+            --icon "swaplogo.ico" `
+            --name "MTGA_Swapper" `
+            --add-data "modelscsr.onnx;." `
+            --add-data "modelesrgan2.onnx;." `
+            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/archspec/json/cpu;archspec/json/cpu" `
+            --add-data "C:/hostedtoolcache/windows/Python/3.11.9/x64/Lib/site-packages/UnityPy;UnityPy/" `
+            --add-data "config.json;." `
+            --add-data "changes.json;." `
+            --add-data "update.json;." `
+            main.py
+
       - name: Build changelog
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v5
-
         with:
           configuration: .github/changelog-config.json
           mode: "COMMIT"
-
           toTag: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -105,5 +142,6 @@ jobs:
             dist/MTGA_Swapper_NoUpscale.exe
             modelscsr.onnx
             modelesrgan2.onnx
+            update.json
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}

@@ -1,9 +1,30 @@
 # MTGA Swapper - A tool for swapping Magic: The Gathering Arena card arts
 # Main application module containing the GUI and core functionality
 # fmt: off
+user_config_directory = Path.home() / ".mtga_swapper"
+user_config_directory.mkdir(exist_ok=True)
+user_config_file_path = user_config_directory / "config.json"
+user_save_changes_path = user_config_directory / "changes.json"
+update_path = user_config_directory / "update.json"
 
+# Create default config file if it doesn't exist
+if not user_config_file_path.exists():
+    with open(get_resource_path("config.json"), "r") as source_config:
+        with open(user_config_file_path, "w") as destination_config:
+            destination_config.write(source_config.read())
+
+if not user_save_changes_path.exists():
+    with open(get_resource_path("changes.json"), "r") as source_config:
+        with open(user_save_changes_path, "w") as destination_config:
+            destination_config.write(source_config.read())
+
+if not update_path.exists():
+    with open(get_resource_path("update.json"), "r") as source_config:
+        with open(update_path, "w") as destination_config:
+            destination_config.write(source_config.read())
+            
 from src.updater import main as check_for_updates
-check_for_updates()
+check_for_updates(update_path)
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
@@ -63,22 +84,7 @@ sg.theme("DarkBlue3")
 
 
 # Initialize configuration directory and file
-user_config_directory = Path.home() / ".mtga_swapper"
-user_config_directory.mkdir(exist_ok=True)
-user_config_file_path = user_config_directory / "config.json"
-user_save_changes_path = user_config_directory / "changes.json"
 
-
-# Create default config file if it doesn't exist
-if not user_config_file_path.exists():
-    with open(get_resource_path("config.json"), "r") as source_config:
-        with open(user_config_file_path, "w") as destination_config:
-            destination_config.write(source_config.read())
-
-if not user_save_changes_path.exists():
-    with open(get_resource_path("changes.json"), "r") as source_config:
-        with open(user_save_changes_path, "w") as destination_config:
-            destination_config.write(source_config.read())
 
 # Initialize variables for database connection
 database_cursor = None
