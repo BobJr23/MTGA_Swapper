@@ -52,7 +52,7 @@ jobs:
           cat <<EOF > update.json
           {
             "version": "${{ steps.extract_tag.outputs.tag_name }}",
-            "build_time": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "build_time": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           }
           EOF
 
