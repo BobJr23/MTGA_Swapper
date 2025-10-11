@@ -21,8 +21,9 @@ if not user_save_changes_path.exists():
         with open(user_save_changes_path, "w") as destination_config:
             destination_config.write(source_config.read())
 
-with open(update_path, "w") as destination_config:
-    destination_config.write(source_config.read())
+with open(get_resource_path("update.json"), "r") as source_config:
+    with open(update_path, "w") as destination_config:
+        destination_config.write(source_config.read())
 
 from src.updater import main as check_for_updates
 check_for_updates(update_path)
