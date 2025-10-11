@@ -2,3 +2,4 @@ FreeSimpleGUI==5.2.0
 UnityPy==1.22.5
 typing-extensions==4.13.2
 etcpak @ git+https://github.com/BobJr23/etcpak.git
+requests==2.32.5

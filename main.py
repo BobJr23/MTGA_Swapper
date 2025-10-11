@@ -1,6 +1,6 @@
 # MTGA Swapper - A tool for swapping Magic: The Gathering Arena card arts
 # Main application module containing the GUI and core functionality
-
+# fmt: off
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
@@ -24,6 +24,9 @@ from src.gui_utils import (
     open_directory_dialog,
     convert_pil_image_to_bytes,
 )
+from src.set_swapper import create_set_swap_window, generate_swap_file, perform_set_swap
+import sys
+import io
 from src.image_utils import (
     remove_alpha_channel,
     resize_image_to_screen,
@@ -165,6 +168,7 @@ if (
                 "Invalid or missing database file. Please select a valid .mtga file.",
                 auto_close_duration=3,
             )
+            
 else:
     # Initialize with empty configuration
     user_config = {"SavePath": None, "DatabasePath": None}
@@ -220,6 +224,14 @@ main_window_layout = [
                     ),
                     sg.Button(
                         "Export Changes Preset", key="-EXPORT_PRESET-", expand_x=True
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Set Swapper (Swap entire sets)",
+                        key="-SET_SWAPPER-",
+                        expand_x=True,
+                        disabled=database_file_path is None,
                     ),
                 ],
                 [
@@ -360,6 +372,101 @@ while True:
             "Exported changes to exported_changes.json", auto_close_duration=0.5
         )
 
+    # Handle Set Swapper functionality
+    if event == "-SET_SWAPPER-":
+        if not database_file_path or not image_save_directory:
+            sg.popup_error(
+                "Please select database and image save location first",
+                auto_close_duration=3,
+            )
+            continue
+
+        # Create set swapper window
+        swap_window = create_set_swap_window()
+
+        try:
+            while True:
+                swap_event, swap_values = swap_window.read()
+
+                if swap_event in (sg.WIN_CLOSED, "-CLOSE-"):
+                    break
+
+                if swap_event == "-GENERATE_SWAPS-":
+                    source_set = swap_values["-SOURCE_SET-"].strip().lower()
+                    target_set = swap_values["-TARGET_SET-"].strip().lower()
+
+                    if not source_set or not target_set:
+                        sg.popup_error("Please enter both source and target set codes.")
+                        continue
+
+                    # Generate to Downloads folder
+                    output_path = (
+                        Path.home()
+                        / "Downloads"
+                        / f"swaps_{source_set}_to_{target_set}.json"
+                    )
+
+                    if generate_swap_file(source_set, target_set, output_path):
+                        swap_window["-SWAP_FILE-"].update(str(output_path))
+                        sg.popup_ok(
+                            f"Swap file generated successfully!\n\nSaved to:\n{output_path}",
+                            title="Success",
+                        )
+                    else:
+                        sg.popup_error(
+                            "Failed to generate swap file.\n\n"
+                            "Possible reasons:\n"
+                            "- Invalid set codes\n"
+                            "- No matching cards found\n"
+                            "- Network error"
+                        )
+
+                if swap_event == "-APPLY_SWAPS-":
+                    swap_file = swap_values["-SWAP_FILE-"].strip()
+
+                    if not swap_file or not Path(swap_file).exists():
+                        sg.popup_error("Please select a valid swap file.")
+                        continue
+
+                    # Confirm before applying
+                    confirm = sg.popup_yes_no(
+                        "This will modify your game files.\n\n"
+                        "A backup will be created automatically.\n\n"
+                        "Do you want to continue?",
+                        title="Confirm Swap",
+                    )
+
+                    if confirm == "Yes":
+                        asset_bundle_dir = (
+                            Path(database_file_path).parent.parent / "AssetBundle"
+                        )
+                        backup_dir = Path.home() / "MTGA_Swapper_Backups"
+                        sg.popup_quick_message(
+                            "Please wait, this may take a couple of minutes. There will be a popup when completed",
+                            auto_close_duration=2,
+                        )
+
+                        if perform_set_swap(
+                            Path(swap_file),
+                            database_cursor,
+                            database_connection,
+                            asset_bundle_dir,
+                            backup_dir,
+                        ):
+                            sg.popup_ok(
+                                "Set swap completed successfully!\n\n"
+                                "Backups saved to:\n" + str(backup_dir) + "\n\n"
+                                "Launch MTG Arena to see your changes.",
+                                title="Success",
+                            )
+                        else:
+                            sg.popup_error(
+                                "Set swap failed. Please check your swap file and try again."
+                            )
+
+        finally:
+            swap_window.close()
+
     # Handle database and save directory selection
     if event == "-SELECT_DATABASE-":
         database_file_path = open_file_dialog(
@@ -426,6 +533,7 @@ while True:
         main_window["-CHANGE_ASSETS-"].update(
             "Change Sleeves, Avatars, etc.", disabled=False
         )
+        main_window["-SET_SWAPPER-"].update(disabled=False)
         main_window["DATABASE_DISPLAY"].update(
             "Database: " + (database_file_path if database_file_path else "None")
         )
