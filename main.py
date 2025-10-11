@@ -109,7 +109,7 @@ if (
         )
 
         # Validate and load database if path exists
-        if user_config["DatabasePath"] != "" and os.path.exists(
+        if database_file_path or user_config["DatabasePath"] != "" and os.path.exists(
             user_config["DatabasePath"]
         ):
             if not database_file_path:
