@@ -1,4 +1,6 @@
 {
-  "version": "v2.4.1",
-  "build_time": "2025-10-11T19:11:48Z"
+  "version": "v2.4.2",
+  "build_time": "2025-10-11T19:23:00Z",
+  "sha256_main": "8a79bd0f5885df358e4da68ffe37fb442c5bf98be4507c48f11d14548acbf092",
+  "sha256_noupscale": "66dc710f80fe362855df2d011ebe9f3023f02673c0fb059cd0b483b49bb81abc"
 }
