@@ -59,13 +59,7 @@ jobs:
           echo "✅ update.json created:"
           cat update.json
 
-      - name: Commit update.json
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add update.json
-          git commit -m "Update update.json for ${{ steps.extract_tag.outputs.tag_name }}"
-          git push origin main
+      
 
       - name: Install Base dependencies
         run: |
@@ -121,6 +115,14 @@ jobs:
 
           echo "✅ update.json updated with checksums:"
           cat update.json
+
+      - name: Commit update.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add update.json
+          git commit -m "Update update.json for ${{ steps.extract_tag.outputs.tag_name }}"
+          git push origin main
 
       - name: Build changelog
         id: build_changelog
