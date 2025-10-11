@@ -43,7 +43,7 @@ jobs:
           echo "tag_name=$TAG" >> $GITHUB_OUTPUT
           echo "release_body=$BODY" >> $GITHUB_OUTPUT
 
-      - name: Generate update.json with version and checksums
+      - name: Generate update.json with version
         id: update_json
         shell: bash
         run: |
@@ -56,16 +56,6 @@ jobs:
           {
             "version": "${{ steps.extract_tag.outputs.tag_name }}",
             "build_time": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-            "downloads": {
-              "upscale": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ steps.extract_tag.outputs.tag_name }}/MTGA_Swapper.exe",
-                "checksum": "$SHA_MAIN"
-              },
-              "no_upscale": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/${{ steps.extract_tag.outputs.tag_name }}/MTGA_Swapper_NoUpscale.exe",
-                "checksum": "$SHA_NOUPSCALE"
-              }
-            }
           }
           EOF
 
@@ -119,6 +109,21 @@ jobs:
             --add-data "update.json;." `
             --add-data "TempLocalizations.csv;." `
             main.py
+
+      - name: Add checksums to update.json
+        id: add_checksums
+        shell: bash
+        run: |
+          # Calculate SHA256 checksums
+          SHA_MAIN=$(sha256sum dist/MTGA_Swapper.exe | cut -d ' ' -f1)
+          SHA_NOUPSCALE=$(sha256sum dist/MTGA_Swapper_NoUpscale.exe | cut -d ' ' -f1)
+
+          # Update JSON
+          jq --arg sha_main "$SHA_MAIN" --arg sha_noupscale "$SHA_NOUPSCALE" \
+            '.sha256_main = $sha_main | .sha256_noupscale = $sha_noupscale' update.json > update_tmp.json && mv update_tmp.json update.json
+
+          echo "✅ update.json updated with checksums:"
+          cat update.json
 
       - name: Build changelog
         id: build_changelog
