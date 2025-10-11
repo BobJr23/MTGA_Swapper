@@ -1,4 +1,5 @@
 import json
+import platform
 import sqlite3
 from pathlib import Path
 
@@ -101,6 +102,69 @@ def save_loc_id_info(
         json.dump(changes_data, output_file, indent=4)
     output_file.close()
     return changes_data
+
+
+# Credit to Bassiuz for the improved MTGA path detection logic
+def get_data_path(mtga_path: Path) -> Path:
+    """Gets the correct MTGA_Data path for Windows or macOS."""
+    system = platform.system()
+    if system == "Darwin" and str(mtga_path).endswith(".app"):
+        return mtga_path / "Contents/Resources/Data"
+
+    # For Windows, specifically check if a nested MTGA_Data folder exists
+    nested_data_path = mtga_path / "MTGA_Data"
+    if system == "Windows" and nested_data_path.exists():
+        print(f"   -> Found nested MTGA_Data folder at: {nested_data_path}")
+        return nested_data_path
+
+    # Fallback for other structures where Downloads is in the main folder
+    return mtga_path
+
+
+def find_mtga_db_path():
+    """Automatically detects the MTG Arena installation path for Windows and macOS."""
+    system = platform.system()
+    home = Path.home()
+
+    if system == "Windows":
+        # List of potential parent directories for the game
+        drives = [Path(f"{drive}:/") for drive in "CD" if Path(f"{drive}:/").exists()]
+        base_paths = [
+            "Program Files/Wizards of the Coast/MTGA",
+            "Program Files (x86)/Wizards of the Coast/MTGA",
+            "Program Files (x86)/Steam/steamapps/common/MTGA",
+            "Program Files/Epic Games/MagicTheGathering",
+        ]
+        paths_to_check = [drive / path for drive in drives for path in base_paths]
+        paths_to_check.append(home / "AppData/Local/Wizards of the Coast/MTGA")
+
+    elif system == "Darwin":  # macOS
+        paths_to_check = [
+            Path("/Applications/MTGA.app"),
+            home / "Library/Application Support/com.wizards.mtga",
+            Path("/Library/Application Support/com.wizards.mtga"),
+            home / "Applications/MTGA.app",
+            Path("/Applications/Epic Games/MagicTheGathering/MTGA.app"),
+        ]
+    else:
+        print(f"Unsupported OS: {system}. Please manually locate the MTGA path.")
+        return None
+
+    print("🔍 Searching for MTG Arena installation...")
+    for path in paths_to_check:
+        if path.exists():
+            # Use our new, smarter helper to find the actual data root
+            data_root = get_data_path(path)
+
+            asset_bundle_path = data_root / "Downloads/Raw"
+            if asset_bundle_path.exists():
+                # We return the main installation folder, not the data subfolder
+                for file in asset_bundle_path.iterdir():
+                    if file.name.startswith("Raw_CardDatabase"):
+                        return str(file)
+
+    print("❌ Could not automatically find MTG Arena installation.")
+    return None
 
 
 if __name__ == "__main__":

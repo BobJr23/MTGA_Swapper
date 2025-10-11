@@ -1,6 +1,9 @@
 # MTGA Swapper - A tool for swapping Magic: The Gathering Arena card arts
 # Main application module containing the GUI and core functionality
 # fmt: off
+
+from src.updater import main as check_for_updates
+check_for_updates()
 import src.sql_editor as database_manager
 from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
@@ -10,8 +13,8 @@ from src.sql_editor import (
     fetch_all_data,
     save_loc_id_info,
     json,
+    find_mtga_db_path
 )
-
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -54,6 +57,7 @@ import os
 import io
 from typing import Dict, Any, Optional, List, Union, Tuple
 
+
 # Set GUI theme for dark appearance
 sg.theme("DarkBlue3")
 
@@ -84,10 +88,10 @@ all_cards_formatted = ["Select a database first"]
 displayed_cards = ["Select a database first"]
 image_save_directory = None
 is_alternate = False
-
+database_file_path = find_mtga_db_path()
 # Load configuration from file or initialize with defaults
 if (
-    sg.popup_yes_no(
+    database_file_path or sg.popup_yes_no(
         "Do you want to load from config file?",
         title="Load Config",
     )
@@ -108,7 +112,8 @@ if (
         if user_config["DatabasePath"] != "" and os.path.exists(
             user_config["DatabasePath"]
         ):
-            database_file_path = user_config["DatabasePath"]
+            if not database_file_path:
+                database_file_path = user_config["DatabasePath"]
             try:
                 # Initialize database connection
                 database_cursor, database_connection, database_file_path = (
@@ -156,6 +161,8 @@ if (
 
             displayed_cards = all_cards_formatted
             filtered_search_results = displayed_cards
+            if not image_save_directory:
+                image_save_directory = sg.popup_get_folder("Select Image Save Folder")
             asset_bundle_directory = (
                 os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
             )
