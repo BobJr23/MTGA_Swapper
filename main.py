@@ -20,7 +20,7 @@ if not user_save_changes_path.exists():
     with open(get_resource_path("changes.json"), "r") as source_config:
         with open(user_save_changes_path, "w") as destination_config:
             destination_config.write(source_config.read())
-
+ 
 with open(get_resource_path("update.json"), "r") as source_config:
     with open(update_path, "w") as destination_config:
         destination_config.write(source_config.read())
