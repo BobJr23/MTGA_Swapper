@@ -3,12 +3,22 @@
 # fmt: off
 from pathlib import Path
 from src.upscaler import is_upscaling_available, get_resource_path
+from src.sql_editor import (
+    save_grp_id_info,
+    change_grp_id,
+    fetch_all_data,
+    save_loc_id_info,
+    json,
+    find_mtga_db_path
+)
+
 
 user_config_directory = Path.home() / ".mtga_swapper"
 user_config_directory.mkdir(exist_ok=True)
 user_config_file_path = user_config_directory / "config.json"
 user_save_changes_path = user_config_directory / "changes.json"
 update_path = user_config_directory / "update.json"
+
 
 # Create default config file if it doesn't exist
 if not user_config_file_path.exists():
@@ -23,20 +33,17 @@ if not user_save_changes_path.exists():
  
 with open(get_resource_path("update.json"), "r") as source_config:
     with open(update_path, "w") as destination_config:
-        destination_config.write(source_config.read())
+        content = source_config.read()
+        destination_config.write(content)
+        version = json.loads(content).get("version", "v0.0.0")
+
+print(f"MTGA Swapper Version: {version if version else 'v0.0.0'}")
 
 from src.updater import main as check_for_updates
 check_for_updates(update_path)
 import src.sql_editor as database_manager
 from random import randint
-from src.sql_editor import (
-    save_grp_id_info,
-    change_grp_id,
-    fetch_all_data,
-    save_loc_id_info,
-    json,
-    find_mtga_db_path
-)
+
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
@@ -347,7 +354,7 @@ main_window_layout = [
 
 # Create main application window
 main_window = sg.Window(
-    "MTGA Swapper",
+    "MTGA Swapper " + version if version else "",
     main_window_layout,
     grab_anywhere=True,
     finalize=True,
