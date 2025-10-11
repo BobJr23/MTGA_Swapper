@@ -97,6 +97,7 @@ jobs:
             --add-data "config.json;." `
             --add-data "changes.json;." `
             --add-data "update.json;." `
+            --add-data "TempLocalizations.csv;." `
             main.py
 
       - name: Install Upscaling dependencies
@@ -116,6 +117,7 @@ jobs:
             --add-data "config.json;." `
             --add-data "changes.json;." `
             --add-data "update.json;." `
+            --add-data "TempLocalizations.csv;." `
             main.py
 
       - name: Build changelog

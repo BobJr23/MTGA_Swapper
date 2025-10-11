@@ -1,6 +1,9 @@
 # MTGA Swapper - A tool for swapping Magic: The Gathering Arena card arts
 # Main application module containing the GUI and core functionality
 # fmt: off
+from pathlib import Path
+from src.upscaler import is_upscaling_available, get_resource_path
+
 user_config_directory = Path.home() / ".mtga_swapper"
 user_config_directory.mkdir(exist_ok=True)
 user_config_file_path = user_config_directory / "config.json"
@@ -22,11 +25,10 @@ if not update_path.exists():
     with open(get_resource_path("update.json"), "r") as source_config:
         with open(update_path, "w") as destination_config:
             destination_config.write(source_config.read())
-            
+
 from src.updater import main as check_for_updates
 check_for_updates(update_path)
 import src.sql_editor as database_manager
-from src.upscaler import is_upscaling_available, get_resource_path
 from random import randint
 from src.sql_editor import (
     save_grp_id_info,
@@ -48,7 +50,7 @@ from src.gui_utils import (
     open_directory_dialog,
     convert_pil_image_to_bytes,
 )
-from src.set_swapper import create_set_swap_window, generate_swap_file, perform_set_swap
+from src.set_swapper import create_set_swap_window, generate_swap_file, perform_set_swap, spiderman_localizations
 import sys
 import io
 from src.image_utils import (
@@ -72,7 +74,6 @@ from src.unity_bundle import (
 import FreeSimpleGUI as sg
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
-from pathlib import Path
 from PIL import Image
 import os
 import io
@@ -173,6 +174,11 @@ if (
                 os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
             )
             configure_unity_version(database_file_path, "2022.3.42f1")
+            if image_save_directory and database_file_path:
+                with open(user_config_file_path, "w") as config_file:
+                    user_config["SavePath"] = str(Path(image_save_directory).as_posix())
+                    user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
+                    config_file.write(sg.json.dumps(user_config, indent=4))
         else:
             database_file_path = None
             all_cards_formatted = ["Select a database first"]
@@ -476,6 +482,20 @@ while True:
                             sg.popup_error(
                                 "Set swap failed. Please check your swap file and try again."
                             )
+                if swap_event == "-SPIDERMAN-":
+                    if not database_file_path:
+                        sg.popup_error(
+                            "Please select a database first", auto_close_duration=3
+                        )
+                        continue
+                    try:
+                        spiderman_localizations(database_cursor, database_connection, get_resource_path("TempLocalizations.csv"))
+                        sg.popup_auto_close(
+                            "Spiderman localizations applied successfully!",
+                            auto_close_duration=2,
+                        )
+                    except Exception as e:
+                        sg.popup_error(f"Error applying localizations: {e}")
 
         finally:
             swap_window.close()
@@ -2001,4 +2021,5 @@ while True:
             continue
 
 # Close the main window when the event loop ends
+
 main_window.close()

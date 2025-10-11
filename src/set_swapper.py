@@ -4,6 +4,7 @@ import time
 import json
 import shutil
 import os
+import csv
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import requests
@@ -410,6 +411,115 @@ def create_set_swap_window():
             sg.Button("Apply Swaps", key="-APPLY_SWAPS-"),
             sg.Button("Close", key="-CLOSE-"),
         ],
+        [sg.Button("Swap Spiderman descriptions", key="-SPIDERMAN-")],
     ]
 
     return sg.Window("Set Swapper", layout, modal=True, finalize=True)
+
+
+def spiderman_localizations(
+    db_cursor, db_connection, csv_file_path: Optional[str] = None
+) -> bool:
+    """
+    Apply localization changes from TempLocalizations.csv for Spider-Man themed swaps.
+
+    CSV format expected (semicolon-delimited):
+    LocId;Formatted;Loc
+    12345;1;Spider-Man Card Name
+    67890;0;Another Card Name
+
+    Args:
+        db_cursor: SQLite cursor for the MTGA database
+        db_connection: SQLite connection for the MTGA database
+        csv_file_path: Optional path to the CSV file. Defaults to './TempLocalizations.csv'
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if csv_file_path is None:
+        csv_file_path = Path("./TempLocalizations.csv")
+
+    if not Path(csv_file_path).exists():
+        sg.popup_error(
+            f"CSV file not found: {csv_file_path}", title="Localization Error"
+        )
+        return False
+
+    try:
+        updated_count = 0
+
+        with open(csv_file_path, "r", encoding="utf-8") as csvfile:
+            # Use semicolon as delimiter
+            csv_reader = csv.DictReader(csvfile, delimiter=";")
+
+            # Validate headers
+            if (
+                "LocId" not in csv_reader.fieldnames
+                or "Loc" not in csv_reader.fieldnames
+            ):
+                sg.popup_error(
+                    "CSV file must have 'LocId', 'Formatted', and 'Loc' columns",
+                    title="Invalid CSV Format",
+                )
+                return False
+
+            for row in csv_reader:
+                loc_id = row.get("LocId", "").strip()
+                formatted = row.get("Formatted", "").strip()
+                new_text = row.get("Loc", "").strip()
+
+                if not loc_id or not new_text:
+                    continue
+
+                # Only use formatted text (Formatted == 1)
+                if formatted != "1":
+                    continue
+
+                try:
+                    # Convert LocId to integer
+                    loc_id_int = int(loc_id)
+
+                    # Update the localization in the database
+                    db_cursor.execute(
+                        "UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
+                        (new_text, loc_id_int),
+                    )
+
+                    if db_cursor.rowcount > 0:
+                        updated_count += 1
+
+                except (ValueError, Exception) as e:
+                    # Skip invalid entries
+                    print("invalid")
+                    continue
+        db_cursor.execute(
+            """
+            UPDATE Localizations_enUS
+            SET Loc = 'When Flash Thompson enters, choose one or both — 
+            • Tap target creature. 
+            • Untap target creature.'
+            WHERE LocId = 1086483
+            """
+        )
+
+        # Commit all changes
+        db_connection.commit()
+
+        if updated_count > 0:
+            sg.popup_ok(
+                f"Successfully updated {updated_count} localization entries!",
+                title="Localization Complete",
+            )
+            return True
+        else:
+            sg.popup_warning(
+                "No localization entries were updated. Check your CSV file.",
+                title="No Updates",
+            )
+            return False
+
+    except Exception as e:
+        sg.popup_error(
+            f"Error processing localizations: {e}", title="Localization Error"
+        )
+        return False
