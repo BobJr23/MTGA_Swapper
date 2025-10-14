@@ -468,7 +468,7 @@ while True:
                         backup_dir = Path.home() / "MTGA_Swapper_Backups"
                         sg.popup_quick_message(
                             "Please wait, this may take a couple of minutes. There will be a popup when completed",
-                            auto_close_duration=2,
+                            auto_close_duration=2, keep_on_top=False
                         )
 
                         if perform_set_swap(
@@ -1900,13 +1900,19 @@ while True:
                         )
                         if new_image_path not in ("", None):
                             # Create backup of original image
-                            backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup{randint(1, 1000)}.png"
+                            
+                            backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_noalpha{randint(1, 1000)}.png"
                             save_image_to_file(
                                 texture_data_list[texture_index].image,
                                 backup_image_path,
-                                editor_values["-REMOVE_ALPHA-"],
+                                True,
                             )
-
+                            backup_alpha_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_alpha{randint(1, 1000)}.png"
+                            save_image_to_file(
+                                texture_data_list[texture_index].image,
+                                backup_alpha_image_path,
+                                False,
+                            )
                             # Replace the texture with new image
                             texture_data = extract_textures_from_bundle(
                                 unity_environment

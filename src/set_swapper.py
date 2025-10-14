@@ -1,5 +1,6 @@
 """ "Adapted from https://github.com/Bassiuz/MTGA-Arena-Set-Swapper, check his project out!"""
 
+# fmt: off
 import time
 import json
 import shutil
@@ -354,6 +355,7 @@ def perform_set_swap(
             # Update name in database localizations
             try:
                 # Get TitleId for this card
+              
                 db_cursor.execute(
                     "SELECT TitleId FROM Cards WHERE GrpId = ?", (card_id,)
                 )
@@ -366,7 +368,10 @@ def perform_set_swap(
                         (target_name, title_id),
                     )
                     db_connection.commit()
+                else:
+                    print(f"No TitleId found for GrpId {card_id}")
             except Exception:
+                print("Error updating localizations")
                 pass
 
     finally:
