@@ -2,7 +2,6 @@
 # Main application module containing the GUI and core functionality
 # fmt: off
 from pathlib import Path
-from src.upscaler import is_upscaling_available, get_resource_path
 from src.sql_editor import (
     save_grp_id_info,
     change_grp_id,
@@ -12,6 +11,22 @@ from src.sql_editor import (
     find_mtga_db_path
 )
 
+def get_resource_path(relative_path: str) -> str:
+    """
+    Get absolute path to resource, works for both development and PyInstaller builds.
+
+    Args:
+        relative_path: Path relative to the application directory
+
+    Returns:
+        Absolute path to the resource file
+    """
+    try:
+        # Only exists when bundled with PyInstaller
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 user_config_directory = Path.home() / ".mtga_swapper"
 user_config_directory.mkdir(exist_ok=True)
@@ -40,10 +55,12 @@ with open(get_resource_path("update.json"), "r") as source_config:
 print(f"MTGA Swapper Version: {version if version else 'v0.0.0'}")
 
 from src.updater import main as check_for_updates
-check_for_updates(update_path)
+if check_for_updates(update_path):
+    sys.exit(0)
 import src.sql_editor as database_manager
 from random import randint
 
+from src.upscaler import is_upscaling_available
 
 # Import upscaling functionality only if dependencies are available
 if is_upscaling_available:
