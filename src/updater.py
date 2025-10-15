@@ -117,12 +117,14 @@ def choose_variant():
 
 def run_main_exe(variant):
     # Launch the main exe
+    print("Launching new application...")
     subprocess.Popen(
         [NO_UPSCALE_EXE_NAME]
         if variant == "no_upscale"
         else [MAIN_EXE_NAME] + sys.argv[1:]
     )
     # Exit the launcher
+    print("Exiting updater...")
     sys.exit(0)
 
 

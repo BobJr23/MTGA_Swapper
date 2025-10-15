@@ -10,6 +10,8 @@ from src.sql_editor import (
     json,
     find_mtga_db_path
 )
+import sys
+import os
 
 def get_resource_path(relative_path: str) -> str:
     """
@@ -74,7 +76,6 @@ from src.gui_utils import (
     convert_pil_image_to_bytes,
 )
 from src.set_swapper import create_set_swap_window, generate_swap_file, perform_set_swap, spiderman_localizations
-import sys
 import io
 from src.image_utils import (
     remove_alpha_channel,
@@ -98,7 +99,6 @@ import FreeSimpleGUI as sg
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from PIL import Image
-import os
 import io
 from typing import Dict, Any, Optional, List, Union, Tuple
 

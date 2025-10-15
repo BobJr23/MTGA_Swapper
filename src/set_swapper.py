@@ -71,8 +71,8 @@ def generate_swap_file(
         source_card = source_map_by_oracle[oracle_id]
         target_card = target_map_by_oracle[oracle_id]
 
-        source_name = source_card.get("name")
-        target_name = target_card.get("name")
+        source_name = source_card.get("printed_name", target_card.get("name"))
+        target_name = target_card.get("printed_name", target_card.get("name"))
 
         expansion_code = source_card.get("set", "").upper()
         collector_number = source_card.get("collector_number")
@@ -83,7 +83,8 @@ def generate_swap_file(
 
         swaps_to_generate.append(
             {
-                "source_card_name": source_name,
+                "source_card_name": target_name,
+                "target_card_name": source_name,
                 "expansion_code": expansion_code,
                 "collector_number": collector_number,
                 "target_api_url": target_api_url,
@@ -113,7 +114,6 @@ def get_card_data_from_url(url: str) -> Optional[Dict]:
     try:
         response = requests.get(api_url)
         response.raise_for_status()
-        time.sleep(0.1)
         return response.json()
     except (requests.exceptions.RequestException, json.JSONDecodeError):
         return None
@@ -165,55 +165,28 @@ def get_card_and_art_ids_from_db(
 
     return card_data
 
-
 def find_asset_bundles(
     asset_bundle_dir: Path, card_id: int, art_id: int
-) -> Tuple[Optional[Path], Optional[Path]]:
+) -> Path:
     """Finds the asset bundles containing a card's art and data."""
-    card_art_bundle, cards_bundle = None, None
+    card_art_bundle = None
 
     if not asset_bundle_dir.exists():
         return None, None
 
-    # ART BUNDLE LOGIC: Individual files first, then ranged bundles
-    art_bundle_files = list(asset_bundle_dir.glob(f"{art_id}_CardArt_*.mtga"))
-    if art_bundle_files:
-        card_art_bundle = art_bundle_files[0]
-    else:
-        art_bundles_ranged = list(asset_bundle_dir.glob("cardart_*.bundle"))
-        for bundle in art_bundles_ranged:
-            try:
-                parts = bundle.stem.split("_")
-                if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
-                    start_id, end_id = int(parts[1]), int(parts[2])
-                    if start_id <= art_id <= end_id:
-                        card_art_bundle = bundle
-                        break
-            except (ValueError, IndexError):
-                continue
+    matching_files = [
+                filename
+                for filename in os.listdir(asset_bundle_dir)
+                if filename.startswith(str(art_id))
+                and filename.endswith(".mtga")
+            ]
 
-    # CARDS BUNDLE LOGIC: Individual files first, then ranged bundles
-    cards_bundle_files = list(asset_bundle_dir.glob(f"{card_id}_Card_*.mtga"))
-    if cards_bundle_files:
-        cards_bundle = cards_bundle_files[0]
-    else:
-        cards_bundles_ranged = list(asset_bundle_dir.glob("cards_*.bundle"))
-        for bundle in cards_bundles_ranged:
-            try:
-                parts = bundle.stem.split("_")
-                if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
-                    start_id, end_id = int(parts[1]), int(parts[2])
-                    if start_id <= card_id <= end_id:
-                        cards_bundle = bundle
-                        break
-            except (ValueError, IndexError):
-                continue
+    if not matching_files:
+        return None, None
 
-    # FINAL FALLBACK
-    if card_art_bundle and not cards_bundle:
-        cards_bundle = card_art_bundle
+    card_art_bundle = asset_bundle_dir / matching_files[0]
 
-    return card_art_bundle, cards_bundle
+    return card_art_bundle
 
 
 def perform_set_swap(
@@ -254,6 +227,7 @@ def perform_set_swap(
     try:
         for swap in swaps_config:
             source_name = swap["source_card_name"]
+            target_name = swap["target_card_name"]
             if source_name not in card_data_map:
                 continue
 
@@ -267,7 +241,6 @@ def perform_set_swap(
             if not target_data:
                 continue
 
-            target_name = target_data.get("name", source_name)
             target_type_line = target_data.get("type_line", "")
             image_uris = target_data.get("image_uris", {})
             is_saga = "Saga" in target_type_line
@@ -284,18 +257,11 @@ def perform_set_swap(
             if not download_image(image_url, image_path):
                 continue
 
-            art_bundle_path, cards_bundle_path = find_asset_bundles(
+            art_bundle_path = find_asset_bundles(
                 asset_bundle_dir, card_id, art_id
             )
-            if not all([art_bundle_path, cards_bundle_path]):
-                continue
-
-            # Backup bundles
-            for bundle_path in {art_bundle_path, cards_bundle_path}:
-                if bundle_path:
-                    backup_path = backup_dir / bundle_path.name
-                    if not backup_path.exists():
-                        shutil.copy(bundle_path, backup_dir)
+            
+            shutil.copy(art_bundle_path, backup_dir)
 
             # Replace art
             env_art = UnityPy.load(str(art_bundle_path))
@@ -344,29 +310,32 @@ def perform_set_swap(
                     f.write(env_art.file.save())
 
             # Replace name in TextAsset
-            if cards_bundle_path != art_bundle_path:
-                env_cards = UnityPy.load(str(cards_bundle_path))
-            else:
-                env_cards = env_art
 
-            with open(cards_bundle_path, "wb") as f:
-                f.write(env_cards.file.save())
+            with open(art_bundle_path, "wb") as f:
+                f.write(env_art.file.save())
 
             # Update name in database localizations
             try:
                 # Get TitleId for this card
               
                 db_cursor.execute(
-                    "SELECT TitleId FROM Cards WHERE GrpId = ?", (card_id,)
+                    "SELECT TitleId, InterchangeableTitleId FROM Cards WHERE GrpId = ?", (card_id,)
                 )
                 result = db_cursor.fetchone()
                 if result:
                     title_id = result[0]
+                    interchangeable_title_id = result[1]
                     # Update Localizations_enUS table
                     db_cursor.execute(
                         "UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
-                        (target_name, title_id),
+                        (source_name, title_id),
                     )
+                    # Set Loc of InterchangeableTitleId to the old card's name
+                    if interchangeable_title_id:
+                        db_cursor.execute(
+                            "UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
+                            (target_name, interchangeable_title_id),
+                        )
                     db_connection.commit()
                 else:
                     print(f"No TitleId found for GrpId {card_id}")
