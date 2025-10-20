@@ -747,11 +747,11 @@ while True:
             if card.split()[0]
             not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
         ]
-
-        if database_manager.unlock_parallax_style(
-            grpid_list, database_cursor, database_connection, user_save_changes_path
-        ):
-            sg.popup_auto_close("Parallax style unlocked successfully!")
+        if sg.popup_yes_no("Are you sure you want to unlock Parallax Style for " + str(len(grpid_list)) + " cards?", title="Confirm") == "Yes":
+            if database_manager.unlock_parallax_style(
+                grpid_list, database_cursor, database_connection, user_save_changes_path
+            ):
+                sg.popup_auto_close("Parallax style unlocked successfully!")
         else:
             sg.popup_auto_close(
                 "Failed to unlock parallax style, ensure that the database is not open in another program."

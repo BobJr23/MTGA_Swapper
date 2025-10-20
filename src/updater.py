@@ -162,11 +162,6 @@ def main(path):
 
         try:
             # Show download progress window
-            sg.popup_no_titlebar(
-                f"Downloading {variant} version...\nPlease wait...",
-                non_blocking=True,
-                keep_on_top=False,
-            )
 
             download_file(url, tmp_path)
             actual = sha256_of_file(tmp_path)
@@ -184,7 +179,7 @@ def main(path):
                 json.dump(info, f, indent=2)
 
             sg.popup_ok(
-                f"Update successful!\nUpdated from {local_ver} → {remote_ver}",
+                f"Update successful!\nUpdated from {local_ver} → {remote_ver}\n\nRestart the application to launch.",
                 title="Update Complete",
             )
         except Exception as e:
@@ -194,7 +189,8 @@ def main(path):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         # Finally launch the main exe
-        run_main_exe(variant)
+        # run_main_exe(variant)
+
         return True
 
     return False
