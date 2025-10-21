@@ -20,6 +20,8 @@ ___
 
 
 [Nexus mods mirror](https://www.nexusmods.com/magicthegatheringarena/mods/6) (less frequently updated)
+
+Join the discord server [here](https://discord.gg/339qjyVc8C)
 ___
 
 **IMPORTANT**

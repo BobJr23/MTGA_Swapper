@@ -94,7 +94,7 @@ from src.unity_bundle import (
     configure_unity_version,
     export_3d_meshes,
 )
-
+from webbrowser import open as open_webbrowser
 import FreeSimpleGUI as sg
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
@@ -276,6 +276,7 @@ main_window_layout = [
                         disabled=database_file_path is None,
                     ),
                 ],
+                [sg.Button("Join Discord Server", key="-JOIN_DISCORD-", expand_x=True)],
                 [
                     sg.Input(
                         "Database: "
@@ -386,6 +387,10 @@ while True:
     event, values = main_window.read()
     if event in (sg.WIN_CLOSED, "Exit"):
         break
+
+    if event == "-JOIN_DISCORD-":
+        open_webbrowser("https://discord.gg/339qjyVc8C")
+        continue
 
     # Handle sorting of cards by selected attribute
     if event == "-SORT_BY-":

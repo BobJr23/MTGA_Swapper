@@ -163,3 +163,16 @@ jobs:
             update.json
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Discord Notification
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          nodetail: true
+          title: "New version of `MTGA Swapper` is ready!"
+          description: |
+            Version `${{ steps.extract_tag.outputs.tag_name }}` has been released.
+            Click [here](${{ github.event.release.html_url }}) to download!
+          content: "<@1430206703244148860>"
+          color: 0xff91a4
