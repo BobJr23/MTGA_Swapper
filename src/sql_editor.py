@@ -40,6 +40,7 @@ def swap_card_group_ids(
     database_cursor: sqlite3.Cursor,
     database_connection: sqlite3.Connection,
     save_path: str = "",
+    asset_bundle_path: str = "",
 ) -> None:
     """
     Swap the GrpId values between two cards in the database.
@@ -78,6 +79,7 @@ def swap_card_group_ids(
             save_path,
             database_cursor,
             database_connection,
+            asset_bundle_path,
         )
     except sqlite3.OperationalError:
         print("You used the wrong file, relaunch this program and try again")
@@ -91,6 +93,7 @@ def swap_card_styles(
     database_cursor: sqlite3.Cursor,
     database_connection: sqlite3.Connection,
     save_path: str = "",
+    asset_bundle_path: str = "",
 ) -> None:
     """
     Swap the ArtID and tag values between two cards in the database for styles.
@@ -139,6 +142,7 @@ def swap_card_styles(
             save_path,
             database_cursor,
             database_connection,
+            asset_bundle_path,
         )
 
     except sqlite3.OperationalError:
@@ -152,6 +156,7 @@ def unlock_parallax_style(
     database_cursor: sqlite3.Cursor,
     database_connection: sqlite3.Connection,
     save_path: str = "",
+    asset_bundle_path: str = "",
 ) -> None:
     """
     Unlock the parallax style for a list of card IDs.
@@ -174,7 +179,9 @@ def unlock_parallax_style(
             [(card_id,) for card_id in card_ids],
         )
         database_cursor.connection.commit()
-        save_grp_id_info(card_ids, save_path, database_cursor, database_connection)
+        save_grp_id_info(
+            card_ids, save_path, database_cursor, database_connection, asset_bundle_path
+        )
         return True
 
     except sqlite3.OperationalError:

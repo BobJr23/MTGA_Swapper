@@ -408,7 +408,9 @@ while True:
         preset_path = open_file_dialog(
             "Select your changes preset JSON file", "JSON files", "*.json"
         )
-        change_grp_id(preset_path, database_cursor, database_connection)
+        if preset_path == "" or preset_path is None:
+            continue
+        change_grp_id(preset_path, database_cursor, database_connection, None, asset_bundle_directory)
 
         sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=1)
     if event == "-EXPORT_PRESET-":
@@ -501,6 +503,7 @@ while True:
                             database_connection,
                             asset_bundle_dir,
                             backup_directory,
+                            user_save_changes_path,
                         ):
                             sg.popup_ok(
                                 "Set swap completed successfully!\n\n"
@@ -716,7 +719,7 @@ while True:
                                 # Backup the NEW asset bundle file after changes
                                 shutil.copy(
                                     os.path.join(asset_bundle_directory, matching_file),
-                                    backup_directory
+                                    backup_directory / f"MOD_{matching_file}",
                                 )
                                 
                                 display_texture_bytes = convert_texture_to_bytes(
@@ -783,6 +786,7 @@ while True:
             user_save_changes_path,
             database_cursor,
             database_connection,
+            asset_bundle_directory,
         )
         with open(user_save_changes_path, "r") as changes_file:
             changes_data = json.load(changes_file)
@@ -1213,7 +1217,7 @@ while True:
                                                     # Backup the NEW asset bundle file after changes
                                                     shutil.copy(
                                                         os.path.join(asset_bundle_directory, selected_asset_file),
-                                                        backup_directory
+                                                        backup_directory / f"MOD_{selected_asset_file}",
                                                     )
 
                                                     # Update displays
@@ -1497,6 +1501,7 @@ while True:
                         database_cursor,
                         database_connection,
                         user_save_changes_path,
+                        asset_bundle_directory,
                     )
                 else:
                     print("Swapping styles")
@@ -1506,6 +1511,7 @@ while True:
                         database_cursor,
                         database_connection,
                         user_save_changes_path,
+                        asset_bundle_directory,
                     )
 
                 sg.popup_ok("Cards swapped successfully!", auto_close_duration=2)
@@ -1804,6 +1810,7 @@ while True:
                                         user_save_changes_path,
                                         database_cursor,
                                         database_connection,
+                                        asset_bundle_directory,
                                     )
                                     sg.popup_ok(
                                         "Details updated successfully!",
@@ -1863,6 +1870,7 @@ while True:
                                 user_save_changes_path,
                                 database_cursor,
                                 database_connection,
+                                asset_bundle_directory,
                             )
 
                             database_connection.commit()
@@ -1966,7 +1974,7 @@ while True:
                             # Backup the NEW asset bundle file after changes
                             shutil.copy(
                                 os.path.join(asset_bundle_directory, matching_bundle_files),
-                                backup_directory
+                                backup_directory / f"MOD_{matching_bundle_files}"
                             )
                             
                             display_texture_bytes = convert_texture_to_bytes(

@@ -12,6 +12,7 @@ import requests
 import UnityPy
 from PIL import Image
 import FreeSimpleGUI as sg
+from src.load_preset import save_grp_id_info
 
 
 def fetch_scryfall_set_data(set_code: str) -> List[Dict]:
@@ -195,6 +196,7 @@ def perform_set_swap(
     db_connection,
     asset_bundle_dir: Path,
     backup_dir: Path,
+    save_path: Optional[Path] = None,
 ) -> bool:
     """
     Main function to perform all card swaps defined in a swaps.json file.
@@ -225,6 +227,7 @@ def perform_set_swap(
     backup_dir.mkdir(exist_ok=True)
 
     try:
+        db_connection += 1
         for swap in swaps_config:
             source_name = swap["source_card_name"]
             target_name = swap["target_card_name"]
@@ -313,7 +316,7 @@ def perform_set_swap(
                 f.write(env_art.file.save())
             
             # Backup the NEW asset file after changes
-            shutil.copy(art_bundle_path, backup_dir)
+            shutil.copy(art_bundle_path, backup_dir / f"MOD_{art_bundle_path.name}")
 
             # Update name in database localizations
             try:
@@ -343,8 +346,11 @@ def perform_set_swap(
             except Exception:
                 print("Error updating localizations")
                 pass
-
+        
     finally:
+        print("Saving GrpId info...")
+        id_list = [ids[0] for ids in card_data_map.values()]
+        save_grp_id_info(id_list, save_path, db_cursor, db_connection, asset_bundle_dir)
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
     return True
