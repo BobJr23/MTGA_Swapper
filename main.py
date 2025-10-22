@@ -12,6 +12,7 @@ from src.sql_editor import (
 )
 import sys
 import os
+import shutil
 
 def get_resource_path(relative_path: str) -> str:
     """
@@ -35,6 +36,8 @@ user_config_directory.mkdir(exist_ok=True)
 user_config_file_path = user_config_directory / "config.json"
 user_save_changes_path = user_config_directory / "changes.json"
 update_path = user_config_directory / "update.json"
+backup_directory = Path.home() / "MTGA_Swapper_Backups"
+backup_directory.mkdir(exist_ok=True)
 
 
 # Create default config file if it doesn't exist
@@ -487,7 +490,6 @@ while True:
                         asset_bundle_dir = (
                             Path(database_file_path).parent.parent / "AssetBundle"
                         )
-                        backup_dir = Path.home() / "MTGA_Swapper_Backups"
                         sg.popup_quick_message(
                             "Please wait, this may take a couple of minutes. There will be a popup when completed",
                             auto_close_duration=2, keep_on_top=False
@@ -498,11 +500,11 @@ while True:
                             database_cursor,
                             database_connection,
                             asset_bundle_dir,
-                            backup_dir,
+                            backup_directory,
                         ):
                             sg.popup_ok(
                                 "Set swap completed successfully!\n\n"
-                                "Backups saved to:\n" + str(backup_dir) + "\n\n"
+                                "Backups saved to:\n" + str(backup_directory) + "\n\n"
                                 "Launch MTG Arena to see your changes.",
                                 title="Success",
                             )
@@ -710,6 +712,13 @@ while True:
                                     os.path.join(asset_bundle_directory, matching_file),
                                     unity_environment,
                                 )
+                                
+                                # Backup the NEW asset bundle file after changes
+                                shutil.copy(
+                                    os.path.join(asset_bundle_directory, matching_file),
+                                    backup_directory
+                                )
+                                
                                 display_texture_bytes = convert_texture_to_bytes(
                                     texture_data.image
                                 )
@@ -1199,6 +1208,12 @@ while True:
                                                             selected_asset_file,
                                                         ),
                                                         unity_environment,
+                                                    )
+                                                    
+                                                    # Backup the NEW asset bundle file after changes
+                                                    shutil.copy(
+                                                        os.path.join(asset_bundle_directory, selected_asset_file),
+                                                        backup_directory
                                                     )
 
                                                     # Update displays
@@ -1947,6 +1962,13 @@ while True:
                                 ),
                                 unity_environment,
                             )
+                            
+                            # Backup the NEW asset bundle file after changes
+                            shutil.copy(
+                                os.path.join(asset_bundle_directory, matching_bundle_files),
+                                backup_directory
+                            )
+                            
                             display_texture_bytes = convert_texture_to_bytes(
                                 texture_data.image
                             )
