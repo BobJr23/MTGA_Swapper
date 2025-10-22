@@ -178,10 +178,19 @@ def main(path):
             with open(path, "w") as f:
                 json.dump(info, f, indent=2)
 
-            sg.popup_ok(
-                f"Update successful!\nUpdated from {local_ver} → {remote_ver}\n\nRestart the application to launch.",
-                title="Update Complete",
-            )
+            if (
+                sg.popup_yes_no(
+                    f"Update successful!\nUpdated from {local_ver} → {remote_ver}. Would you like to see the changes from this update? \n\nRestart the application to launch.",
+                )
+                == "Yes"
+            ):
+                # Show changes
+                import webbrowser
+
+                webbrowser.open(
+                    "https://github.com/BobJr23/MTGA_Swapper/releases/latest"
+                )
+
         except Exception as e:
             sg.popup_error(f"Update failed: {e}", title="Update Error")
             # Could fallback: run existing version, or abort
