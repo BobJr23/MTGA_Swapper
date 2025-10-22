@@ -260,8 +260,6 @@ def perform_set_swap(
             art_bundle_path = find_asset_bundles(
                 asset_bundle_dir, card_id, art_id
             )
-            
-            shutil.copy(art_bundle_path, backup_dir)
 
             # Replace art
             env_art = UnityPy.load(str(art_bundle_path))
@@ -313,6 +311,9 @@ def perform_set_swap(
 
             with open(art_bundle_path, "wb") as f:
                 f.write(env_art.file.save())
+            
+            # Backup the NEW asset file after changes
+            shutil.copy(art_bundle_path, backup_dir)
 
             # Update name in database localizations
             try:
