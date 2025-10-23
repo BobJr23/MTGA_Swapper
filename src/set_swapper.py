@@ -227,7 +227,6 @@ def perform_set_swap(
     backup_dir.mkdir(exist_ok=True)
 
     try:
-        db_connection += 1
         for swap in swaps_config:
             source_name = swap["source_card_name"]
             target_name = swap["target_card_name"]
@@ -348,7 +347,6 @@ def perform_set_swap(
                 pass
         
     finally:
-        print("Saving GrpId info...")
         id_list = [ids[0] for ids in card_data_map.values()]
         save_grp_id_info(id_list, save_path, db_cursor, db_connection, asset_bundle_dir)
         if temp_dir.exists():
