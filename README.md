@@ -37,7 +37,10 @@ Got questions, ideas, or want to chat? Reach out on Discord:
 
 **`_bobjr_`**
 
+or join the MTGA Swapper discord server linked above
+
 ---
+
 
 ## 📚 Table of Contents
 
