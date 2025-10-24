@@ -190,6 +190,79 @@ def find_asset_bundles(
     return card_art_bundle
 
 
+def perform_image_swap( image_uris, target_type_line, temp_dir,
+                        card_id, asset_bundle_dir, art_id ):
+    if not image_uris:
+        return None, None
+
+    is_saga = "Saga" in target_type_line
+
+    if is_saga:
+        image_url = image_uris.get("png")
+    else:
+        image_url = image_uris.get("art_crop")
+
+    if not image_url:
+        return None, None
+
+    image_path = temp_dir / f"{card_id}.png"
+
+    if not download_image(image_url, image_path):
+        return None, None
+
+    art_bundle_path = find_asset_bundles(
+        asset_bundle_dir, card_id, art_id
+    )
+
+    # Replace art
+    env_art = UnityPy.load(str(art_bundle_path))
+    all_textures = [
+        obj for obj in env_art.objects if obj.type.name == "Texture2D"
+    ]
+
+    if all_textures:
+        all_textures.sort(
+            key=lambda x: (
+                x.read().m_Width * x.read().m_Height
+                if hasattr(x.read(), "m_Width")
+                else 0
+            ),
+            reverse=True,
+        )
+        main_art_texture_obj = all_textures[0]
+        main_art_texture = main_art_texture_obj.read()
+
+        img = Image.open(image_path)
+
+        if is_saga:
+            original_width, original_height = img.size
+
+            # Crop vertically in half (take right side)
+            crop_left = original_width // 2
+            crop_right = original_width
+
+            # Crop some off top and bottom (adjust these percentages as needed)
+            top_crop_percent = 0.12
+            bottom_crop_percent = 0.17
+            right_crop_percent = 0.92
+
+            crop_top = int(original_height * top_crop_percent)
+            crop_bottom = int(original_height * (1 - bottom_crop_percent))
+            crop_right = int(original_width * right_crop_percent)
+
+            # Perform the crop: (left, top, right, bottom)
+            img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
+            img = img.resize((256, 512), Image.LANCZOS)
+
+        main_art_texture.image = img
+        main_art_texture.save()
+
+        with open(art_bundle_path, "wb") as f:
+            f.write(env_art.file.save())
+
+    return art_bundle_path, env_art
+
+
 def perform_set_swap(
     swaps_file_path: Path,
     db_cursor,
@@ -244,83 +317,50 @@ def perform_set_swap(
                 continue
 
             target_type_line = target_data.get("type_line", "")
+
             image_uris = target_data.get("image_uris", {})
-            is_saga = "Saga" in target_type_line
+            image_uris_list = []
 
-            if is_saga:
-                image_url = image_uris.get("png")
+            if image_uris:
+                image_uris_list.append(image_uris)
             else:
-                image_url = image_uris.get("art_crop")
+                for face in target_data.get("card_faces", []):
+                    image_uris_list.append(face.get("image_uris", {}))
 
-            if not image_url:
-                continue
 
-            image_path = temp_dir / f"{card_id}.png"
-            if not download_image(image_url, image_path):
-                continue
+            for idx, image_uris_entry in enumerate(image_uris_list):
+                if idx == 1:
+                  db_cursor.execute(
+                      "SELECT GrpId, ArtId FROM Cards WHERE LinkedFaceGrpIds = ?", (card_id,)
+                  )
+                  result = db_cursor.fetchone()
+                  card_id = result[0]
+                  art_id = result[1]
 
-            art_bundle_path = find_asset_bundles(
-                asset_bundle_dir, card_id, art_id
-            )
-
-            # Replace art
-            env_art = UnityPy.load(str(art_bundle_path))
-            all_textures = [
-                obj for obj in env_art.objects if obj.type.name == "Texture2D"
-            ]
-
-            if all_textures:
-                all_textures.sort(
-                    key=lambda x: (
-                        x.read().m_Width * x.read().m_Height
-                        if hasattr(x.read(), "m_Width")
-                        else 0
-                    ),
-                    reverse=True,
+                art_bundle_path, env_art = perform_image_swap(
+                  image_uris_entry,
+                  target_type_line,
+                  temp_dir,
+                  card_id,
+                  asset_bundle_dir,
+                  art_id,
                 )
-                main_art_texture_obj = all_textures[0]
-                main_art_texture = main_art_texture_obj.read()
 
-                img = Image.open(image_path)
-
-                if is_saga:
-                    original_width, original_height = img.size
-
-                    # Crop vertically in half (take right side)
-                    crop_left = original_width // 2
-                    crop_right = original_width
-
-                    # Crop some off top and bottom (adjust these percentages as needed)
-                    top_crop_percent = 0.12
-                    bottom_crop_percent = 0.17
-                    right_crop_percent = 0.92
-
-                    crop_top = int(original_height * top_crop_percent)
-                    crop_bottom = int(original_height * (1 - bottom_crop_percent))
-                    crop_right = int(original_width * right_crop_percent)
-
-                    # Perform the crop: (left, top, right, bottom)
-                    img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
-                    img = img.resize((256, 512), Image.LANCZOS)
-
-                main_art_texture.image = img
-                main_art_texture.save()
-
-                with open(art_bundle_path, "wb") as f:
-                    f.write(env_art.file.save())
+            if not art_bundle_path or not env_art:
+              continue
 
             # Replace name in TextAsset
 
             with open(art_bundle_path, "wb") as f:
                 f.write(env_art.file.save())
-            
+
             # Backup the NEW asset file after changes
             shutil.copy(art_bundle_path, backup_dir / f"MOD_{art_bundle_path.name}")
 
             # Update name in database localizations
             try:
                 # Get TitleId for this card
-              
+
                 db_cursor.execute(
                     "SELECT TitleId, InterchangeableTitleId FROM Cards WHERE GrpId = ?", (card_id,)
                 )
