@@ -115,6 +115,24 @@ sg.theme("DarkBlue3")
 
 # Initialize variables for database connection
 database_cursor = None
+get_cards_query = """
+    SELECT 
+        CASE 
+            WHEN NULLIF(c1.Order_Title, '') IS NOT NULL THEN c1.Order_Title
+            WHEN NULLIF(c1.Order_Title, '') IS NULL 
+                AND NULLIF(c2.Order_Title, '') IS NOT NULL THEN c2.Order_Title || '-flip-side'
+        END AS Order_Title,
+        c1.ExpansionCode,
+        c1.ArtSize,
+        c1.GrpId,
+        c1.ArtId
+    FROM Cards c1
+    LEFT JOIN Cards c2
+        ON c1.LinkedFaceGrpIds = c2.GrpId
+    AND NULLIF(c2.Order_Title, '') IS NOT NULL
+    WHERE NULLIF(c1.Order_Title, '') IS NOT NULL
+    OR NULLIF(c2.Order_Title, '') IS NOT NULL;
+"""
 database_connection = None
 database_file_path = None
 all_cards_formatted = ["Select a database first"]
@@ -159,24 +177,7 @@ if (
                         format_card_display,
                         sorted(
                             database_cursor.execute(
-                                """
-                                    SELECT 
-                                        CASE 
-                                            WHEN NULLIF(c1.Order_Title, '') IS NOT NULL THEN c1.Order_Title
-                                            WHEN NULLIF(c1.Order_Title, '') IS NULL 
-                                                AND NULLIF(c2.Order_Title, '') IS NOT NULL THEN c2.Order_Title || '-flip-side'
-                                        END AS Order_Title,
-                                        c1.ExpansionCode,
-                                        c1.ArtSize,
-                                        c1.GrpId,
-                                        c1.ArtId
-                                    FROM Cards c1
-                                    LEFT JOIN Cards c2
-                                        ON c1.LinkedFaceGrpIds = c2.GrpId
-                                    AND NULLIF(c2.Order_Title, '') IS NOT NULL
-                                    WHERE NULLIF(c1.Order_Title, '') IS NOT NULL
-                                    OR NULLIF(c2.Order_Title, '') IS NOT NULL;
-                                """
+                                get_cards_query
                             ).fetchall()
                         ),
                     )
@@ -551,22 +552,7 @@ while True:
                     format_card_display,
                     sorted(
                         database_cursor.execute(
-                            """
-        SELECT 
-        CASE 
-            WHEN c1.Order_Title IS NOT NULL THEN c1.Order_Title
-            WHEN c1.Order_Title IS NULL AND c2.Order_Title IS NOT NULL THEN c2.Order_Title || '-flip-side'
-        END AS Order_Title,
-        c1.ExpansionCode,
-        c1.ArtSize,
-        c1.GrpID,
-        c1.ArtID
-        FROM Cards c1
-        LEFT JOIN Cards c2
-        ON c1.LinkedFaceGrpIds = c2.GrpID
-        AND c2.Order_Title IS NOT NULL
-        WHERE c1.Order_Title IS NOT NULL OR c2.Order_Title IS NOT NULL
-    """
+                            get_cards_query
                         ).fetchall()
                     ),
                 )
