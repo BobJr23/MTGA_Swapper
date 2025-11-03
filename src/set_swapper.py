@@ -173,7 +173,7 @@ def find_asset_bundles(
     card_art_bundle = None
 
     if not asset_bundle_dir.exists():
-        return None, None
+        return None
 
     matching_files = [
                 filename
@@ -183,7 +183,7 @@ def find_asset_bundles(
             ]
 
     if not matching_files:
-        return None, None
+        return None
 
     card_art_bundle = asset_bundle_dir / matching_files[0]
 
