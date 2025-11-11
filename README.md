@@ -26,14 +26,6 @@ ___
 [Nexus mods mirror](https://www.nexusmods.com/magicthegatheringarena/mods/6) (less frequently updated)
 
 Join the discord server [here](https://discord.gg/339qjyVc8C)
-___
-
-**IMPORTANT**
-
-If you have changes that you want to save so it doesn't get wiped by updates, download the latest version of the Swapper (2.2.6+) and press "Backup changes for all cards". This should take about 10 or so seconds if you're doing every card in the game, but you can reduce this by searching for the cards you've changed (Ex. searching om1 to only backup the omenpaths set cards). Once an update hits, simply press "Load Changes Preset" and select the exported_changes.json file that is saved to your computer. 
-
-<img width="1170" height="302" alt="image" src="https://github.com/user-attachments/assets/adf41f89-2f13-490b-a0fa-616680d7e45e" />
-
 
 ___
 
