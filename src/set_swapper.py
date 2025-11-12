@@ -257,8 +257,16 @@ def perform_image_swap( image_uris, target_type_line, temp_dir,
         main_art_texture.image = img
         main_art_texture.save()
 
+        # Save the modified bundle back to file
+        if env_art.files:
+            file_obj = list(env_art.files.values())[0]
+        elif env_art.assets:
+            file_obj = env_art.assets[0]
+        else:
+            raise ValueError("No files found in Unity environment to save")
+        
         with open(art_bundle_path, "wb") as f:
-            f.write(env_art.file.save())
+            f.write(file_obj.save())
 
     return art_bundle_path, env_art
 
@@ -351,8 +359,16 @@ def perform_set_swap(
 
             # Replace name in TextAsset
 
+            # Save the modified bundle back to file
+            if env_art.files:
+                file_obj = list(env_art.files.values())[0]
+            elif env_art.assets:
+                file_obj = env_art.assets[0]
+            else:
+                raise ValueError("No files found in Unity environment to save")
+            
             with open(art_bundle_path, "wb") as f:
-                f.write(env_art.file.save())
+                f.write(file_obj.save())
 
             # Backup the NEW asset file after changes
             shutil.copy(art_bundle_path, backup_dir / f"MOD_{art_bundle_path.name}")
