@@ -215,8 +215,24 @@ def replace_texture_in_bundle(
     texture_data.save()
 
     # Save the modified bundle back to file
-    with open(bundle_file_path, "wb") as bundle_file:
-        bundle_file.write(unity_environment.file.save())
+    # resources.assets is a SerializedFile, not a BundleFile, and needs different handling
+    is_resources_assets = "resources.assets" in Path(bundle_file_path).name.lower()
+    
+    if is_resources_assets:
+        # For resources.assets (SerializedFile), get from files dict or assets list
+        if unity_environment.files:
+            file_obj = list(unity_environment.files.values())[0]
+        elif unity_environment.assets:
+            file_obj = unity_environment.assets[0]
+        else:
+            raise ValueError("No files found in Unity environment to save")
+        
+        with open(bundle_file_path, "wb") as bundle_file:
+            bundle_file.write(file_obj.save())
+    else:
+        # For regular asset bundles, use the standard env.file pattern
+        with open(bundle_file_path, "wb") as bundle_file:
+            bundle_file.write(unity_environment.file.save())
 
 
 def convert_texture_to_bytes(
