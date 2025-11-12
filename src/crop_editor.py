@@ -226,7 +226,7 @@ def filter_crops_by_art_id(
     Returns:
         Filtered list of crop entries
     """
-    return [entry for entry in crop_data if art_id in entry.path]
+    return [entry for entry in crop_data if art_id.zfill(6) in entry.path]
 
 
 def create_crop_editor_window(
@@ -404,7 +404,7 @@ def create_crop_editor_window(
                 window["-CARD_RESULTS-"].update(values=display_results)
             else:
                 window["-CARD_RESULTS-"].update(values=[])
-                sg.popup_warning(
+                sg.popup_error(
                     f"No cards found matching '{search_term}'", title="Search"
                 )
 
@@ -421,7 +421,7 @@ def create_crop_editor_window(
                 update_crop_table(filtered_crops)
 
                 if not filtered_crops:
-                    sg.popup_warning(
+                    sg.popup_error(
                         f"No crop entries found for ArtId {art_id}", title="No Results"
                     )
 
@@ -469,7 +469,7 @@ def create_crop_editor_window(
                         f"Invalid values entered: {e}", title="Validation Error"
                     )
             else:
-                sg.popup_warning(
+                sg.popup_error(
                     "Please select an entry from the table first", title="No Selection"
                 )
 
