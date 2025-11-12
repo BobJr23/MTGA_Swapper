@@ -1210,22 +1210,41 @@ while True:
                                                     )
 
                                                     # Replace texture
-                                                    replace_texture_in_bundle(
-                                                        current_texture,
-                                                        new_image_path,
-                                                        os.path.join(
-                                                            asset_bundle_directory,
-                                                            selected_asset_file,
-                                                        ),
-                                                        unity_environment,
-                                                    )
-                                                    
-                                                    # Backup the NEW asset bundle file after changes
-                                                    shutil.copy(
-                                                        os.path.join(asset_bundle_directory, selected_asset_file),
-                                                        backup_directory / f"MOD_{selected_asset_file}",
-                                                    )
-
+                                                    if "resources.assets" in selected_asset_file.lower():
+                                                        replace_texture_in_bundle(
+                                                            current_texture,
+                                                            new_image_path,
+                                                            os.path.join(
+                                                                str(Path(asset_bundle_directory).parent.parent),
+                                                                selected_asset_file,
+                                                            ),
+                                                            unity_environment,
+                                                        )
+                                                        
+                                                        # Backup the NEW asset bundle file after changes
+                                                        shutil.copy(
+                                                            os.path.join(str(Path(asset_bundle_directory).parent.parent), selected_asset_file),
+                                                            backup_directory / f"MOD_{selected_asset_file}",
+                                                        )
+                                                    else:
+                                                        replace_texture_in_bundle(
+                                                            current_texture,
+                                                            new_image_path,
+                                                            os.path.join(
+                                                                asset_bundle_directory,
+                                                                selected_asset_file,
+                                                            ),
+                                                            unity_environment,
+                                                        )
+                                                        
+                                                        # Backup the NEW asset bundle file after changes
+                                                        shutil.copy(
+                                                            os.path.join(
+                                                                asset_bundle_directory,
+                                                                selected_asset_file,
+                                                            ),
+                                                            backup_directory / f"MOD_{selected_asset_file}",
+                                                        )
                                                     # Update displays
                                                     new_img = Image.open(new_image_path)
                                                     display_image = (
