@@ -257,11 +257,12 @@ main_window_layout = [
                         ),
                         key="-CHANGE_ASSETS-",
                         disabled=database_file_path is None,
-                        size=(53, 1),
+                        size=(35, 1),
                     ),
                     sg.Button(
                         "Export Fonts", key="-EXPORT_FONTS-", size=(15, 1), pad=(5, 5)
                     ),
+                    sg.Button("Crop Editor", key="-CROP_EDITOR-", size=(15, 1), pad=(5, 5)),
                 ],
                 [
                     sg.Button("Search tokens", key="-SEARCH_TOKENS-", expand_x=True),
@@ -424,6 +425,19 @@ while True:
         sg.popup_auto_close(
             "Exported changes to exported_changes.json", auto_close_duration=0.5
         )
+    
+    if event == "-CROP_EDITOR-":
+        from src.crop_editor import create_crop_editor_window
+
+        if not database_file_path:
+            sg.popup_error(
+                "Please select database and image save location first",
+                auto_close_duration=3,
+            )
+            continue
+
+        # Create crop editor window (it handles its own event loop)
+        create_crop_editor_window(database_file_path, database_cursor)
 
     # Handle Set Swapper functionality
     if event == "-SET_SWAPPER-":
@@ -818,6 +832,7 @@ while True:
                     )
                 ]
             )
+            asset_bundle_files.append("resources.assets")
 
             # Create asset browser window
             asset_browser_layout = [
@@ -907,14 +922,19 @@ while True:
 
                     try:
                         # Load the selected asset bundle
-                        unity_environment = load_unity_bundle(
-                            os.path.join(asset_bundle_directory, selected_asset_file)
-                        )
 
+                        if "resources.assets" in selected_asset_file.lower():
+                            unity_environment = load_unity_bundle(str(Path(asset_bundle_directory).parent.parent / "resources.assets"))
+                        else:
+                            unity_environment = load_unity_bundle(
+                                os.path.join(asset_bundle_directory, selected_asset_file)
+                            )
                         # Get all textures from the bundle
+                        print(unity_environment)
                         texture_data_list = extract_textures_from_bundle(
                             unity_environment
                         )
+                        print(f"Found {len(texture_data_list)} textures in {selected_asset_file}")
 
                         if texture_data_list:
                             # Create gallery view with thumbnails
@@ -1309,6 +1329,7 @@ while True:
                             sg.popup_error("No textures found in this asset bundle!")
 
                     except Exception as e:
+
                         sg.popup_error(f"Error loading asset bundle: {e}")
 
             asset_browser_window.close()

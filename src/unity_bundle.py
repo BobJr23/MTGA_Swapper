@@ -71,6 +71,13 @@ def extract_textures_from_bundle(
     texture_objects = [
         obj.read() for obj in unity_environment.objects if obj.type.name == "Texture2D"
     ]
+    texture_objects = list(
+        filter(
+            lambda tex: "atlas" not in tex.m_Name.lower().split()[-1]
+            and "font texture" != tex.m_Name.lower(),
+            texture_objects,
+        )
+    )
 
     # Sort by size (width + height) and color complexity (number of unique colors), largest first
     return sorted(
