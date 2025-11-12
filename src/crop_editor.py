@@ -418,6 +418,7 @@ def create_crop_editor_window(
                 # Filter crop data by this ArtId
                 filtered_crops = filter_crops_by_art_id(crop_data, art_id)
                 update_crop_table(filtered_crops)
+                clear_edit_fields()
 
                 if not filtered_crops:
                     sg.popup_error(
