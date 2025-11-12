@@ -1,11 +1,10 @@
 # MTGA Swapper 🎴🛠️  
 
-
+[![Discord server invite](https://discordapp.com/api/guilds/1430192422687735820/embed.png)](https://discord.gg/nt6ZdSkzdP)
 ![GitHub Release](https://img.shields.io/github/v/release/bobjr23/mtga_swapper)
 ![Python Version](https://img.shields.io/pypi/pyversions/realesrgan-ncnn-py)
 ![GitHub Downloads](https://img.shields.io/github/downloads/bobjr23/mtga_swapper/total)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bobjr23/mtga_swapper/main.yml)
-[![Discord](https://img.shields.io/discord/1430192422687735820)](https://discord.gg/6Sx3FDAemf)
 
 Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
