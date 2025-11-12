@@ -275,7 +275,6 @@ def create_crop_editor_window(
         [
             sg.Text("Search Card Name:", size=(15, 1)),
             sg.Input(key="-SEARCH_CARD-", size=(30, 1), enable_events=True),
-            sg.Button("Search", key="-DO_SEARCH-"),
         ],
         [
             sg.Text("Found Cards:", size=(15, 1)),
