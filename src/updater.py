@@ -197,6 +197,21 @@ def main(path):
             # Optionally clean up tmp file
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+            if (
+                sg.popup_yes_no(
+                    "Would you like to download the update manually from the website?",
+                    title="Manual Download",
+                )
+                == "Yes"
+            ):
+                import webbrowser
+
+                webbrowser.open(
+                    "https://github.com/BobJr23/MTGA_Swapper/releases/latest"
+                )
+            else:
+                pass
+
         # Finally launch the main exe
         # run_main_exe(variant)
 
