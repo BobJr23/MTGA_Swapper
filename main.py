@@ -596,23 +596,23 @@ while True:
                 user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
                 config_file.write(sg.json.dumps(user_config, indent=4))
 
-        # Configure Unity version and update GUI
-        configure_unity_version(database_file_path, "2022.3.42f1")
-        main_window["-CARD_LIST-"].update(displayed_cards)
-        main_window["-CHANGE_ASSETS-"].update(
-            "Change Sleeves, Avatars, etc.", disabled=False
-        )
-        main_window["-SET_SWAPPER-"].update(disabled=False)
-        main_window["DATABASE_DISPLAY"].update(
-            "Database: " + (database_file_path if database_file_path else "None")
-        )
-        main_window["IMAGE_SAVE_DISPLAY"].update(
-            "Image Save Location: "
-            + (image_save_directory if image_save_directory else "None")
-        )
-        asset_bundle_directory = (
-            os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
-        )
+            # Configure Unity version and update GUI
+            configure_unity_version(database_file_path, "2022.3.42f1")
+            main_window["-CARD_LIST-"].update(displayed_cards)
+            main_window["-CHANGE_ASSETS-"].update(
+                "Change Sleeves, Avatars, etc.", disabled=False
+            )
+            main_window["-SET_SWAPPER-"].update(disabled=False)
+            main_window["DATABASE_DISPLAY"].update(
+                "Database: " + (database_file_path if database_file_path else "None")
+            )
+            main_window["IMAGE_SAVE_DISPLAY"].update(
+                "Image Save Location: "
+                + (image_save_directory if image_save_directory else "None")
+            )
+            asset_bundle_directory = (
+                os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+            )
 
     if event == "-SEARCH_TOKENS-":
         if database_cursor is not None:
