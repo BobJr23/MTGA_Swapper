@@ -191,7 +191,6 @@ def get_card_texture_data(
 
         except Exception as error:
             print(f"Error loading card textures: {error}")
-            return None
     return None
 
 

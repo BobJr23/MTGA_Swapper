@@ -342,6 +342,9 @@ main_window_layout = [
                     ),
                 ],
                 [
+                    sg.Button("Export arts for all cards in the list below", key="-EXPORT_ALL_ARTS-", expand_x=True),
+                ],
+                [
                     sg.Text("Sort by:"),
                     sg.Combo(
                         ["Name", "Set", "ArtType", "GrpID", "ArtID"],
@@ -756,6 +759,31 @@ while True:
         main_window["-USE_DECKLIST-"].update(value=True)
         event = "-USE_DECKLIST-"
         values["-USE_DECKLIST-"] = True
+
+    if event == "-EXPORT_ALL_ARTS-":
+        artid_list = [
+            (card.split()[0], card.split()[4])
+            for card in filtered_search_results
+            
+        ]
+        export_directory = askdirectory(
+            title="Select folder to save exported arts",
+            initialdir=image_save_directory if image_save_directory else os.path.expanduser("~"),
+        )
+        if export_directory:
+            for name, artid in artid_list:
+                card = MTGACard(name, "", "", "", artid)
+                image_data_list, texture_data_list, matching_file = get_card_texture_data(
+                    card, database_file_path, ret_matching=True
+                )
+                if image_data_list:
+                    image_bytes = convert_texture_to_bytes(image_data_list[0])
+                    image = Image.open(io.BytesIO(image_bytes))
+                    save_path = os.path.join(export_directory, f"{name}.png")
+                    image.save(save_path)
+            sg.popup_auto_close(
+                f"Exported {len(artid_list)} arts to {export_directory}", auto_close_duration=2
+            )
 
     if event == "-UNLOCK_PARALLAX-":
         grpid_list = [
