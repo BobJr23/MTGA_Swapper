@@ -74,6 +74,7 @@ def change_grp_id(
     json_manual: dict | None = None,
     asset_bundle_path: str | None = None,
 ) -> None:
+    print("Applying changes to the database...")
     if json_manual:
         grp_id = json_manual.pop("GrpId")
         localizations = json_manual.pop("Localizations_enUS", None)
@@ -94,22 +95,20 @@ def change_grp_id(
         changes_file.close()
         available_backups = Path.home() / "MTGA_Swapper_Backups"
         backups = list(available_backups.glob("MOD_*.mtga"))
-        backups.sort(key=os.path.getmtime, reverse=True)
+        backups.sort(key=os.path.getmtime)
+        for art in backups:
+            matching_files = [
+                filename
+                for filename in os.listdir(asset_bundle_path)
+                if filename.startswith(str(art)[4:10]) and filename.endswith(".mtga")
+            ]
+            if matching_files:
+                shutil.copy(
+                    art,
+                    os.path.join(asset_bundle_path, matching_files[0]),
+                )
         for grp_id, new_values in changes_data.items():
-            backup_path = [b for b in backups if str(new_values["ArtId"]) in b.name]
-            if len(backup_path) > 0:
-                matching_files = [
-                    filename
-                    for filename in os.listdir(asset_bundle_path)
-                    if filename.startswith(str(new_values["ArtId"]))
-                    and filename.endswith(".mtga")
-                ]
-                if matching_files:
 
-                    shutil.copy(
-                        backup_path[0],
-                        os.path.join(asset_bundle_path, matching_files[0]),
-                    )
             localizations = new_values.pop("Localizations_enUS", None)
             # Update the database with the new values for the specified GrpId
             set_values = ", ".join([f"{col} = ?" for col in new_values.keys()])
