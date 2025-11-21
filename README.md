@@ -18,7 +18,7 @@ ___
 - You can export your changes to a file and then load it after updates or share it for others to use.
 - You can unlock any unique card style/border. See [11. Unlock card styles](#11-unlock-card-styles) for reference
 - Swap entire sets art & names (Ex. Spiderman and omenpaths). Huge thanks to Bassiuz for his script [here](https://github.com/Bassiuz/MTGA-Arena-Set-Swapper)
-- You can mass export cards arts
+- You can mass export cards arts with one click
 ___
 **exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
 
