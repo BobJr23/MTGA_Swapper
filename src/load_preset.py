@@ -100,7 +100,8 @@ def change_grp_id(
             matching_files = [
                 filename
                 for filename in os.listdir(asset_bundle_path)
-                if filename.startswith(str(art)[4:10]) and filename.endswith(".mtga")
+                if filename.startswith(str(art.name)[4:10])
+                and filename.endswith(".mtga")
             ]
             if matching_files:
                 shutil.copy(
