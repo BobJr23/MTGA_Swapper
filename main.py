@@ -763,8 +763,7 @@ while True:
     if event == "-EXPORT_ALL_ARTS-":
         artid_list = [
             (card.split()[0], card.split()[4])
-            for card in filtered_search_results
-            
+            for card in filtered_search_results if card.split()[0] not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
         ]
         export_directory = askdirectory(
             title="Select folder to save exported arts",
@@ -781,6 +780,9 @@ while True:
                     image = Image.open(io.BytesIO(image_bytes))
                     save_path = os.path.join(export_directory, f"{name}.png")
                     image.save(save_path)
+                else:
+                    print(f"No texture found for {name} ({artid})")
+                    
             sg.popup_auto_close(
                 f"Exported {len(artid_list)} arts to {export_directory}", auto_close_duration=2
             )

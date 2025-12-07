@@ -171,7 +171,7 @@ def get_card_texture_data(
             ]
 
             if not matching_files:
-                return None
+                return None, None, None
 
             bundle_file_path = os.path.join(asset_bundle_path, matching_files[0])
             unity_environment = load_unity_bundle(bundle_file_path)
@@ -191,7 +191,7 @@ def get_card_texture_data(
 
         except Exception as error:
             print(f"Error loading card textures: {error}")
-    return None
+    return None, None, None
 
 
 def replace_texture_in_bundle(
