@@ -327,6 +327,8 @@ def create_crop_editor_window(
         [
             sg.Button("Save Changes", key="-SAVE_EDIT-"),
             sg.Button("Revert", key="-REVERT_EDIT-"),
+            sg.Button("Create Row", key="-DUPLICATE_PATH-"),
+            sg.Button("Delete Row", key="-DELETE_ROW-", button_color=("white", "red")),
         ],
     ]
 
@@ -481,6 +483,200 @@ def create_crop_editor_window(
                 load_entry_to_edit(filtered_crops[selected_entry_index])
             else:
                 clear_edit_fields()
+
+        if event == "-DUPLICATE_PATH-":
+            # Create a new entry with the same path but customizable other fields
+            if selected_entry_index is not None and 0 <= selected_entry_index < len(
+                filtered_crops
+            ):
+                try:
+                    # Get the path from the selected entry
+                    selected_entry = filtered_crops[selected_entry_index]
+                    duplicate_path = selected_entry.path
+
+                    # Create a popup to get the new values
+                    duplicate_layout = [
+                        [
+                            sg.Text(
+                                "Creating new entry with same path",
+                                font=("Arial", 10, "bold"),
+                            )
+                        ],
+                        [sg.Text(f"Path: {duplicate_path}", text_color="blue")],
+                        [sg.HorizontalSeparator()],
+                        [
+                            sg.Text("Format:"),
+                            sg.Input("", key="-DUP_FORMAT-", size=(15, 1)),
+                        ],
+                        [
+                            sg.Text("X:"),
+                            sg.Input("", key="-DUP_X-", size=(10, 1)),
+                            sg.Text("Y:"),
+                            sg.Input("", key="-DUP_Y-", size=(10, 1)),
+                        ],
+                        [
+                            sg.Text("Z:"),
+                            sg.Input("", key="-DUP_Z-", size=(10, 1)),
+                            sg.Text("W:"),
+                            sg.Input("", key="-DUP_W-", size=(10, 1)),
+                        ],
+                        [
+                            sg.Text("Generated:"),
+                            sg.Input("", key="-DUP_GENERATED-", size=(10, 1)),
+                        ],
+                        [
+                            sg.Button("Create", key="-DUP_CREATE-"),
+                            sg.Button("Cancel", key="-DUP_CANCEL-"),
+                        ],
+                    ]
+
+                    dup_window = sg.Window(
+                        "Duplicate with Same Path", duplicate_layout, modal=True
+                    )
+
+                    while True:
+                        dup_event, dup_values = dup_window.read()
+
+                        if dup_event in (sg.WIN_CLOSED, "-DUP_CANCEL-"):
+                            dup_window.close()
+                            break
+
+                        if dup_event == "-DUP_CREATE-":
+                            try:
+                                new_format = dup_values["-DUP_FORMAT-"]
+                                new_x = float(dup_values["-DUP_X-"])
+                                new_y = float(dup_values["-DUP_Y-"])
+                                new_z = float(dup_values["-DUP_Z-"])
+                                new_w = float(dup_values["-DUP_W-"])
+                                new_generated = int(dup_values["-DUP_GENERATED-"])
+
+                                if not new_format:
+                                    sg.popup_error(
+                                        "Format is required.", title="Missing Field"
+                                    )
+                                    continue
+
+                                # Check if an entry with this Path and Format already exists
+                                crop_cursor.execute(
+                                    "SELECT COUNT(*) FROM Crops WHERE Path = ? AND Format = ?",
+                                    (duplicate_path, new_format),
+                                )
+                                exists = crop_cursor.fetchone()[0] > 0
+
+                                if exists:
+                                    sg.popup_error(
+                                        f"An entry with Path '{duplicate_path}' and Format '{new_format}' already exists.\n"
+                                        "Please choose a different Format.",
+                                        title="Duplicate Entry",
+                                    )
+                                    continue
+
+                                # Create new entry
+                                new_entry = ArtCropData(
+                                    path=duplicate_path,
+                                    format_type=new_format,
+                                    x=new_x,
+                                    y=new_y,
+                                    z=new_z,
+                                    w=new_w,
+                                    generated=new_generated,
+                                )
+
+                                # Insert into database
+                                crop_cursor.execute(
+                                    "INSERT INTO Crops (Path, Format, X, Y, Z, W, Generated) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                    new_entry.to_tuple(),
+                                )
+
+                                # Add to our data structures
+                                crop_data.append(new_entry)
+                                filtered_crops.append(new_entry)
+
+                                # Update the display
+                                update_crop_table(filtered_crops)
+                                window["-TOTAL_COUNT-"].update(
+                                    f"Total Entries: {len(crop_data)}"
+                                )
+
+                                sg.popup_ok(
+                                    f"New entry created with Path '{duplicate_path}' and Format '{new_format}'.\n"
+                                    "Click 'Save Database' to commit changes to file.",
+                                    auto_close=True,
+                                    auto_close_duration=3,
+                                )
+
+                                dup_window.close()
+                                break
+
+                            except ValueError as e:
+                                sg.popup_error(
+                                    f"Invalid values entered: {e}",
+                                    title="Validation Error",
+                                )
+                            except Exception as e:
+                                sg.popup_error(
+                                    f"Failed to create new entry: {e}", title="Error"
+                                )
+
+                except Exception as e:
+                    sg.popup_error(f"Error: {e}", title="Error")
+            else:
+                sg.popup_error(
+                    "Please select an entry from the table first", title="No Selection"
+                )
+
+        if event == "-DELETE_ROW-":
+            # Delete the selected entry
+            if selected_entry_index is not None and 0 <= selected_entry_index < len(
+                filtered_crops
+            ):
+                entry = filtered_crops[selected_entry_index]
+
+                # Confirm deletion
+                if (
+                    sg.popup_yes_no(
+                        f"Delete this entry?\n\n"
+                        f"Path: {entry.path}\n"
+                        f"Format: {entry.format_type}\n\n"
+                        f"This action cannot be undone until you reload the database.",
+                        title="Confirm Delete",
+                    )
+                    == "Yes"
+                ):
+                    try:
+                        # Delete from database
+                        crop_cursor.execute(
+                            "DELETE FROM Crops WHERE Path = ? AND Format = ?",
+                            (entry.path, entry.format_type),
+                        )
+
+                        # Remove from our data structures
+                        crop_data.remove(entry)
+                        filtered_crops.remove(entry)
+
+                        # Clear edit fields and update display
+                        clear_edit_fields()
+                        selected_entry_index = None
+                        update_crop_table(filtered_crops)
+                        window["-TOTAL_COUNT-"].update(
+                            f"Total Entries: {len(crop_data)}"
+                        )
+
+                        sg.popup_ok(
+                            "Entry deleted.\n"
+                            "Click 'Save Database' to commit changes to file.",
+                            auto_close=True,
+                            auto_close_duration=2,
+                        )
+
+                    except Exception as e:
+                        sg.popup_error(
+                            f"Failed to delete entry: {e}", title="Delete Error"
+                        )
+            else:
+                sg.popup_error(
+                    "Please select an entry from the table first", title="No Selection"
+                )
 
         if event == "-SAVE_DB-":
             # Commit all changes to the database file
