@@ -510,15 +510,15 @@ def create_crop_editor_window(
                         ],
                         [
                             sg.Text("X:"),
-                            sg.Input("", key="-DUP_X-", size=(10, 1)),
+                            sg.Input("1", key="-DUP_X-", size=(10, 1)),
                             sg.Text("Y:"),
-                            sg.Input("", key="-DUP_Y-", size=(10, 1)),
+                            sg.Input("1", key="-DUP_Y-", size=(10, 1)),
                         ],
                         [
                             sg.Text("Z:"),
-                            sg.Input("", key="-DUP_Z-", size=(10, 1)),
+                            sg.Input("0", key="-DUP_Z-", size=(10, 1)),
                             sg.Text("W:"),
-                            sg.Input("", key="-DUP_W-", size=(10, 1)),
+                            sg.Input("0", key="-DUP_W-", size=(10, 1)),
                         ],
                         [
                             sg.Text("Generated:"),
