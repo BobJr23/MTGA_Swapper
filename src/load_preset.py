@@ -6,6 +6,81 @@ import os
 import shutil
 
 
+def apply_crop_changes(crop_changes: dict, asset_bundle_path: str) -> None:
+    """
+    Apply crop changes from the changes.json file to the Art Crop Database.
+
+    Args:
+        crop_changes: Dictionary of crop changes keyed by ArtId
+        asset_bundle_path: Path to the MTGA asset bundle directory
+    """
+    try:
+        # Find the Raw_ArtCropDatabase file
+        crop_db_path = None
+        raw_path = Path(asset_bundle_path).parent / "Raw"
+        for file in os.listdir(raw_path):
+            if file.startswith("Raw_ArtCropDatabase") and file.endswith(".mtga"):
+                crop_db_path = os.path.join(raw_path, file)
+                break
+
+        if not crop_db_path or not os.path.exists(crop_db_path):
+            print(
+                "Warning: Could not find Raw_ArtCropDatabase file, skipping crop changes"
+            )
+            return
+
+        # Connect to the crop database
+        conn = sqlite3.connect(crop_db_path)
+        cursor = conn.cursor()
+
+        # Apply each crop change
+        for art_id, crops in crop_changes.items():
+            for crop in crops:
+                try:
+                    path = crop["path"]
+                    format_type = crop["format"]
+                    x = crop["x"]
+                    y = crop["y"]
+                    z = crop["z"]
+                    w = crop["w"]
+                    generated = crop["generated"]
+
+                    # Check if entry exists
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM Crops WHERE Path = ? AND Format = ?",
+                        (path, format_type),
+                    )
+                    exists = cursor.fetchone()[0] > 0
+
+                    if exists:
+                        # Update existing entry
+                        cursor.execute(
+                            "UPDATE Crops SET X = ?, Y = ?, Z = ?, W = ?, Generated = ? WHERE Path = ? AND Format = ?",
+                            (x, y, z, w, generated, path, format_type),
+                        )
+                    else:
+                        # Insert new entry
+                        cursor.execute(
+                            "INSERT INTO Crops (Path, Format, X, Y, Z, W, Generated) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (path, format_type, x, y, z, w, generated),
+                        )
+
+                    print(
+                        f"Applied crop change for ArtId {art_id}: {path} ({format_type})"
+                    )
+
+                except Exception as e:
+                    print(f"Error applying crop change for ArtId {art_id}: {e}")
+
+        # Commit all changes
+        conn.commit()
+        conn.close()
+        print(f"Successfully applied {len(crop_changes)} crop change(s)")
+
+    except Exception as e:
+        print(f"Error applying crop changes: {e}")
+
+
 def save_grp_id_info(
     grp_id: list[str],
     user_save_changes_path: str,
@@ -90,12 +165,25 @@ def change_grp_id(
             list(json_manual.values()) + [grp_id],
         )
     else:
+        print(f"Loading changes from: {change_path}")
         with open(change_path, "r") as changes_file:
             changes_data = json.load(changes_file)
         changes_file.close()
+
+        # Handle crop changes if present
+        crop_changes = changes_data.pop("crops", None)
+        if crop_changes and asset_bundle_path:
+            print(f"Found {len(crop_changes)} ArtId(s) with crop changes")
+            apply_crop_changes(crop_changes, asset_bundle_path)
+        elif crop_changes:
+            print(
+                "Warning: Crop changes found but asset_bundle_path not provided, skipping crop changes"
+            )
+
         available_backups = Path.home() / "MTGA_Swapper_Backups"
         backups = list(available_backups.glob("MOD_*.mtga"))
         backups.sort(key=os.path.getmtime)
+        restored_count = 0
         for art in backups:
             matching_files = [
                 filename
@@ -108,6 +196,13 @@ def change_grp_id(
                     art,
                     os.path.join(asset_bundle_path, matching_files[0]),
                 )
+                restored_count += 1
+        if restored_count > 0:
+            print(f"Restored {restored_count} backup file(s)")
+
+        card_count = len(changes_data)
+        total_localizations = 0
+        print(f"Applying changes to {card_count} card(s)...")
         for grp_id, new_values in changes_data.items():
 
             localizations = new_values.pop("Localizations_enUS", None)
@@ -122,8 +217,12 @@ def change_grp_id(
                     f"UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
                     [(text, loc_id) for loc_id, text in localizations.items()],
                 )
+                total_localizations += len(localizations)
 
     connection.commit()
+    if total_localizations > 0:
+        print(f"Updated {total_localizations} localization(s)")
+    print("Changes applied successfully!")
 
 
 def save_loc_id_info(

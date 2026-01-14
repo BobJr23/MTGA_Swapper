@@ -34,6 +34,7 @@ import sqlite3
 import FreeSimpleGUI as sg
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import json
 
 
 class ArtCropData:
@@ -229,8 +230,154 @@ def filter_crops_by_art_id(
     return [entry for entry in crop_data if art_id.zfill(6) in entry.path]
 
 
+def extract_art_id_from_path(path: str) -> Optional[str]:
+    """
+    Extract ArtId from a crop path.
+    Path format: Assets/Core/CardArt/001000/001155_AIF
+
+    Args:
+        path: The crop entry path
+
+    Returns:
+        ArtId as string, or None if not found
+    """
+    try:
+        # Split the path and look for the numeric part
+        parts = path.split("/")
+        art_id = parts[-1].split("_")[0].lstrip("0")
+        return art_id
+    except Exception as e:
+        print(f"Error extracting ArtId from path {path}: {e}")
+    return None
+
+
+def save_crop_change_to_json(entry: ArtCropData, changes_file_path: str) -> bool:
+    """
+    Save crop change to the changes.json file based on ArtId.
+
+    Args:
+        entry: The crop entry that was modified
+        changes_file_path: Path to the changes.json file
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Extract ArtId from path
+        art_id = extract_art_id_from_path(entry.path)
+        if not art_id:
+            print(f"Could not extract ArtId from path: {entry.path}")
+            return False
+
+        # Load existing changes
+        if os.path.exists(changes_file_path):
+            with open(changes_file_path, "r") as f:
+                changes_data = json.load(f)
+        else:
+            changes_data = {}
+
+        # Initialize crops structure if not exists
+        if "crops" not in changes_data:
+            changes_data["crops"] = {}
+
+        # Store crop change under ArtId
+        if art_id not in changes_data["crops"]:
+            changes_data["crops"][art_id] = []
+
+        # Create crop entry dict
+        crop_dict = {
+            "path": entry.path,
+            "format": entry.format_type,
+            "x": entry.x,
+            "y": entry.y,
+            "z": entry.z,
+            "w": entry.w,
+            "generated": entry.generated,
+        }
+
+        # Check if this crop already exists (by path and format)
+        existing_crops = changes_data["crops"][art_id]
+        existing_index = None
+        for i, crop in enumerate(existing_crops):
+            if crop["path"] == entry.path and crop["format"] == entry.format_type:
+                existing_index = i
+                break
+
+        if existing_index is not None:
+            # Update existing
+            existing_crops[existing_index] = crop_dict
+        else:
+            # Add new
+            existing_crops.append(crop_dict)
+
+        # Save back to file
+        with open(changes_file_path, "w") as f:
+            json.dump(changes_data, f, indent=4)
+
+        return True
+
+    except Exception as e:
+        print(f"Error saving crop change to JSON: {e}")
+        return False
+
+
+def remove_crop_change_from_json(entry: ArtCropData, changes_file_path: str) -> bool:
+    """
+    Remove crop change from the changes.json file.
+
+    Args:
+        entry: The crop entry to remove
+        changes_file_path: Path to the changes.json file
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Extract ArtId from path
+        art_id = extract_art_id_from_path(entry.path)
+        if not art_id:
+            return False
+
+        # Load existing changes
+        if not os.path.exists(changes_file_path):
+            return True  # Nothing to remove
+
+        with open(changes_file_path, "r") as f:
+            changes_data = json.load(f)
+
+        # Check if crops section exists
+        if "crops" not in changes_data or art_id not in changes_data["crops"]:
+            return True  # Nothing to remove
+
+        # Remove the matching crop entry
+        changes_data["crops"][art_id] = [
+            crop
+            for crop in changes_data["crops"][art_id]
+            if not (crop["path"] == entry.path and crop["format"] == entry.format_type)
+        ]
+
+        # Clean up empty entries
+        if not changes_data["crops"][art_id]:
+            del changes_data["crops"][art_id]
+
+        if not changes_data["crops"]:
+            del changes_data["crops"]
+
+        # Save back to file
+        with open(changes_file_path, "w") as f:
+            json.dump(changes_data, f, indent=4)
+
+        return True
+
+    except Exception as e:
+        print(f"Error removing crop change from JSON: {e}")
+        return False
+
+
 def create_crop_editor_window(
-    database_file_path: str, database_cursor: sqlite3.Cursor
+    database_file_path: str,
+    database_cursor: sqlite3.Cursor,
+    changes_file_path: str = None,
 ) -> None:
     """
     Create and display the crop editor window.
@@ -238,7 +385,13 @@ def create_crop_editor_window(
     Args:
         database_file_path: Path to the Raw_CardDatabase file
         database_cursor: SQLite cursor for querying card data
+        changes_file_path: Path to the changes.json file (optional)
     """
+    # Set default changes file path if not provided
+    if changes_file_path is None:
+        user_config_directory = Path.home() / ".mtga_swapper"
+        changes_file_path = str(user_config_directory / "changes.json")
+
     # Determine the crop database path
     db_dir = os.path.dirname(database_file_path)
     crop_db_path = None
@@ -453,6 +606,9 @@ def create_crop_editor_window(
 
                     # Update in the database (without committing yet)
                     if update_crop_entry(crop_cursor, entry, commit=False):
+                        # Save to changes.json
+                        save_crop_change_to_json(entry, changes_file_path)
+
                         # Update the display
                         update_crop_table(filtered_crops)
 
@@ -588,6 +744,9 @@ def create_crop_editor_window(
                                     new_entry.to_tuple(),
                                 )
 
+                                # Save to changes.json
+                                save_crop_change_to_json(new_entry, changes_file_path)
+
                                 # Add to our data structures
                                 crop_data.append(new_entry)
                                 filtered_crops.append(new_entry)
@@ -649,6 +808,9 @@ def create_crop_editor_window(
                             "DELETE FROM Crops WHERE Path = ? AND Format = ?",
                             (entry.path, entry.format_type),
                         )
+
+                        # Remove from changes.json
+                        remove_crop_change_from_json(entry, changes_file_path)
 
                         # Remove from our data structures
                         crop_data.remove(entry)

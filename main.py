@@ -440,7 +440,7 @@ while True:
             continue
 
         # Create crop editor window (it handles its own event loop)
-        create_crop_editor_window(database_file_path, database_cursor)
+        create_crop_editor_window(database_file_path, database_cursor, str(user_save_changes_path))
 
     # Handle Set Swapper functionality
     if event == "-SET_SWAPPER-":
