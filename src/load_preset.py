@@ -150,6 +150,7 @@ def change_grp_id(
     asset_bundle_path: str | None = None,
 ) -> None:
     print("Applying changes to the database...")
+    total_localizations = 0
     if json_manual:
         grp_id = json_manual.pop("GrpId")
         localizations = json_manual.pop("Localizations_enUS", None)
