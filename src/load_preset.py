@@ -160,6 +160,7 @@ def change_grp_id(
                 f"UPDATE Localizations_enUS SET Loc = ? WHERE LocId = ?",
                 [(text, loc_id) for loc_id, text in localizations.items()],
             )
+            total_localizations += len(localizations)
 
         cursor.execute(
             f"UPDATE Cards SET {set_values} WHERE GrpId = ?",
