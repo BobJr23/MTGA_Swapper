@@ -490,7 +490,7 @@ def create_crop_editor_window(
         [sg.Frame("Crop Entries", crop_frame, expand_x=True)],
         [sg.Frame("Edit Entry", edit_frame, expand_x=True)],
         [
-            sg.Button("Save Database", key="-SAVE_DB-"),
+            sg.Button("Apply Changes to Database", key="-SAVE_DB-"),
             sg.Button("Reload Database", key="-RELOAD_DB-"),
             sg.Button("Close", key="-CLOSE-"),
         ],
@@ -558,9 +558,6 @@ def create_crop_editor_window(
                 window["-CARD_RESULTS-"].update(values=display_results)
             else:
                 window["-CARD_RESULTS-"].update(values=[])
-                sg.popup_error(
-                    f"No cards found matching '{search_term}'", title="Search"
-                )
 
         if event == "-CARD_RESULTS-":
             # User selected a card from the search results
@@ -574,11 +571,6 @@ def create_crop_editor_window(
                 filtered_crops = filter_crops_by_art_id(crop_data, art_id)
                 update_crop_table(filtered_crops)
                 clear_edit_fields()
-
-                if not filtered_crops:
-                    sg.popup_error(
-                        f"No crop entries found for ArtId {art_id}", title="No Results"
-                    )
 
         if event == "-CROP_TABLE-":
             # User selected a row in the crop table
@@ -642,19 +634,29 @@ def create_crop_editor_window(
 
         if event == "-DUPLICATE_PATH-":
             # Create a new entry with the same path but customizable other fields
+            # Allow creation even if no row is selected, as long as an ArtId is selected
             if selected_entry_index is not None and 0 <= selected_entry_index < len(
                 filtered_crops
             ):
-                try:
-                    # Get the path from the selected entry
-                    selected_entry = filtered_crops[selected_entry_index]
-                    duplicate_path = selected_entry.path
+                duplicate_path = filtered_crops[selected_entry_index].path
+            elif current_art_id:
+                # Build the path from the current ArtId
+                art_id_padded = current_art_id.zfill(6)
+                folder = art_id_padded[:3] + "000"
+                duplicate_path = f"Assets/Core/CardArt/{folder}/{art_id_padded}_AIF"
+            else:
+                sg.popup_error(
+                    "Please select a card or a crop entry first", title="No Selection"
+                )
+                duplicate_path = None
 
+            if duplicate_path is not None:
+                try:
                     # Create a popup to get the new values
                     duplicate_layout = [
                         [
                             sg.Text(
-                                "Creating new entry with same path",
+                                "Creating new entry with path",
                                 font=("Arial", 10, "bold"),
                             )
                         ],
@@ -662,7 +664,7 @@ def create_crop_editor_window(
                         [sg.HorizontalSeparator()],
                         [
                             sg.Text("Format:"),
-                            sg.Input("", key="-DUP_FORMAT-", size=(15, 1)),
+                            sg.Input("Normal", key="-DUP_FORMAT-", size=(15, 1)),
                         ],
                         [
                             sg.Text("X:"),
@@ -678,7 +680,7 @@ def create_crop_editor_window(
                         ],
                         [
                             sg.Text("Generated:"),
-                            sg.Input("", key="-DUP_GENERATED-", size=(10, 1)),
+                            sg.Input("1", key="-DUP_GENERATED-", size=(10, 1)),
                         ],
                         [
                             sg.Button("Create", key="-DUP_CREATE-"),
@@ -779,10 +781,6 @@ def create_crop_editor_window(
 
                 except Exception as e:
                     sg.popup_error(f"Error: {e}", title="Error")
-            else:
-                sg.popup_error(
-                    "Please select an entry from the table first", title="No Selection"
-                )
 
         if event == "-DELETE_ROW-":
             # Delete the selected entry
