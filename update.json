@@ -1,14 +1,14 @@
 {
-  "version": "v2.7.2",
-  "build_time": "2026-02-18T16:02:08Z",
+  "version": "v2.7.3",
+  "build_time": "2026-04-07T15:35:00Z",
   "downloads": {
     "upscale": {
-      "url": "https://github.com/BobJr23/MTGA_Swapper/releases/download/v2.7.2/MTGA_Swapper.exe",
-      "checksum": "587dab2a822872fa684826f96751dd8d7f4d5e7a64495ecdd37f2c4054ad3773"
+      "url": "https://github.com/BobJr23/MTGA_Swapper/releases/download/v2.7.3/MTGA_Swapper.exe",
+      "checksum": "8981201e0a569c7c0864d5e5d1a2e95b6c2f7d23428855328ae6c889fe8eb719"
     },
     "no_upscale": {
-      "url": "https://github.com/BobJr23/MTGA_Swapper/releases/download/v2.7.2/MTGA_Swapper_NoUpscale.exe",
-      "checksum": "33aa46c3eec7c7da6dda92bb4963f104f98493670aeea6737d1576602cd3ddc3"
+      "url": "https://github.com/BobJr23/MTGA_Swapper/releases/download/v2.7.3/MTGA_Swapper_NoUpscale.exe",
+      "checksum": "9b6700a4bcc68fd38694496f0b1be5422fb77fd1f8f56143318c74836b6116d5"
     }
   }
 }
