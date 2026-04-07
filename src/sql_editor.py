@@ -286,6 +286,7 @@ def set_localization_from_id(
         f"UPDATE Localizations_{language} SET Loc=? WHERE LocId=?",
         (new_text, loc_id),
     )
+    print(f"Updated LocId {loc_id} with new text: {new_text}")
     database_cursor.connection.commit()
 
 

@@ -1814,20 +1814,21 @@ while True:
                                         ),
                                         key=f"-Loc_DETAIL-FlavorTextId-",
                                     ),
-                                    # sg.Text("Type", size=(15, 1)),
-                                    # sg.Input(
-                                    #     database_manager.get_localization_from_id(
-                                    #         database_cursor, details["TypeTextId"]
-                                    #     ),
-                                    #     key=f"-Loc_DETAIL-{key}-",
-                                    # ),
-                                    # sg.Text("Subtype", size=(15, 1)),
-                                    # sg.Input(
-                                    #     database_manager.get_localization_from_id(
-                                    #         database_cursor, details["SubtypeTextId"]
-                                    #     ),
-                                    #     key=f"-Loc_DETAIL-{key}-",
-                                    # ),
+                                ],[
+                                    sg.Text("Type", size=(15, 1)),
+                                    sg.Input(
+                                        database_manager.get_localization_from_id(
+                                            database_cursor, details["TypeTextId"]
+                                        ),
+                                        key=f"-Loc_DETAIL-TypeTextId-",
+                                    ),
+                                    sg.Text("Subtype", size=(15, 1)),
+                                    sg.Input(
+                                        database_manager.get_localization_from_id(
+                                            database_cursor, details["SubtypeTextId"]
+                                        ),
+                                        key=f"-Loc_DETAIL-SubtypeTextId-",
+                                    ),
                                 ],
                                 [
                                     sg.Column(left_column, vertical_alignment="top"),
