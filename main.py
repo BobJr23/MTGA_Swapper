@@ -140,6 +140,7 @@ displayed_cards = ["Select a database first"]
 image_save_directory = None
 is_alternate = False
 database_file_path = find_mtga_db_path()
+lands_set = ("island", "forest", "mountain", "plains", "wastes", "swamp", "snowcoveredforest", "snowcoveredisland", "snowcoveredmountain", "snowcoveredplains", "snowcoveredswamp")
 # Load configuration from file or initialize with defaults
 if (
     database_file_path or sg.popup_yes_no(
@@ -763,7 +764,7 @@ while True:
     if event == "-EXPORT_ALL_ARTS-":
         artid_list = [
             (card.split()[0], card.split()[4])
-            for card in filtered_search_results if card.split()[0] not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
+            for card in filtered_search_results if card.split()[0] not in lands_set
         ]
         export_directory = askdirectory(
             title="Select folder to save exported arts",
@@ -792,7 +793,7 @@ while True:
             card.split()[3]
             for card in filtered_search_results
             if card.split()[0]
-            not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
+            not in lands_set
         ]
         if sg.popup_yes_no("Are you sure you want to unlock Parallax Style for " + str(len(grpid_list)) + " cards?", title="Confirm") == "Yes":
             if database_manager.unlock_parallax_style(
@@ -809,7 +810,7 @@ while True:
             card.split()[3]
             for card in filtered_search_results
             if card.split()[0]
-            not in ("island", "forest", "mountain", "plains", "wastes", "swamp")
+            not in lands_set
         ]
         save_grp_id_info(
             grpid_list,
@@ -1548,7 +1549,7 @@ while True:
                 if (
                     first_card_to_swap.name != second_card_to_swap.name
                     or first_card_to_swap.name
-                    in ("island", "forest", "mountain", "plains", "swamp")
+                    in lands_set
                 ):
 
                     database_manager.swap_card_group_ids(
