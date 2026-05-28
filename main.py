@@ -420,15 +420,16 @@ while True:
 
         sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=1)
     if event == "-EXPORT_PRESET-":
-        with open(user_save_changes_path, "r") as changes_file:
-            changes_data = json.load(changes_file)
+        if (sg.popup_yes_no("This will export all current changes as a preset that can be loaded later. Do you want to continue?", title="Export Preset") == "Yes"):
+            with open(user_save_changes_path, "r") as changes_file:
+                changes_data = json.load(changes_file)
 
-        with open("exported_changes.json", "w") as export_file:
-            json.dump(changes_data, export_file, indent=4)
+            with open("exported_changes.json", "w") as export_file:
+                json.dump(changes_data, export_file, indent=4)
 
-        sg.popup_auto_close(
-            "Exported changes to exported_changes.json", auto_close_duration=0.5
-        )
+            sg.popup_auto_close(
+                "Exported changes to exported_changes.json", auto_close_duration=0.5
+            )
     
     if event == "-CROP_EDITOR-":
         from src.crop_editor import create_crop_editor_window
@@ -651,7 +652,8 @@ while True:
                         display_texture_bytes = convert_texture_to_bytes(
                             image_data_list[0]
                         )
-                        token_card.image = display_texture_bytes
+                        token_card.image = image_data_list[0]
+                        texture_width, texture_height = image_data_list[0].size
                     else:
                         print("No texture found.")
                     token_editor_layout = [
@@ -675,6 +677,11 @@ while True:
                                 size=(5, 1),
                             ),
                             sg.Button("Save", key="-SAVE_ASSET-"),
+                            sg.Button(
+                                "Upscale",
+                                key="-UPSCALE_TOKEN_IMAGE-",
+                                disabled=not is_upscaling_available,
+                            ),
                         ],
                         [
                             sg.Image(
@@ -735,6 +742,9 @@ while True:
                                     source=display_texture_bytes
                                 )
                                 token_card.image = texture_data.image
+                                texture_width, texture_height = (
+                                    texture_data.image.size
+                                )
                                 sg.popup_auto_close(
                                     "Image changed successfully!", auto_close_duration=1
                                 )
@@ -742,6 +752,28 @@ while True:
                                 sg.popup_error(
                                     "Invalid image file", auto_close_duration=1
                                 )
+
+                        # Handle token image upscaling
+                        if (
+                            event == "-UPSCALE_TOKEN_IMAGE-"
+                            and is_upscaling_available
+                        ):
+                            upscaled_image = upscale_card_image(
+                                io.BytesIO(display_texture_bytes),
+                                texture_width,
+                                texture_height,
+                            )
+
+                            # Resize for display if too large
+                            display_image = resize_image_to_screen(upscaled_image)
+                            display_texture_bytes = convert_texture_to_bytes(
+                                display_image
+                            )
+                            token_editor_window["-ASSET_IMAGE-"].update(
+                                source=display_texture_bytes
+                            )
+                            token_card.image = upscaled_image
+                            texture_width, texture_height = upscaled_image.size
 
                         # Handle asset saving
                         if event == "-SAVE_ASSET-":
