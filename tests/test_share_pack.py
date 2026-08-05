@@ -10,6 +10,7 @@ from PIL import Image
 
 from src.share_pack import (
     MAX_MEMBER_BYTES,
+    _index_backup_bundles,
     apply_pack_images,
     collect_pack_art_ids,
     export_pack,
@@ -22,6 +23,7 @@ from src.share_pack import (
     parse_image_filename,
     read_pack,
     record_swapped_image,
+    recover_images_from_backups,
     validate_changes_data,
 )
 
@@ -446,3 +448,78 @@ def test_apply_pack_images_skips_an_image_with_too_many_pixels(tmp_path, monkeyp
 
     assert applied_count == 0
     assert any("too large to apply" in message for message in problem_messages)
+
+
+def test_backup_index_anchors_the_art_id(tmp_path):
+    # Same hazard as find_bundle_for_art_id: '7' sorts before '_', so an unanchored
+    # match would map 123456 onto the 7-digit card's backup.
+    (tmp_path / "MOD_1234567_CardArt_xyz.mtga").write_bytes(b"wrong")
+    (tmp_path / "MOD_123456_CardArt_abc.mtga").write_bytes(b"right")
+
+    index = _index_backup_bundles(tmp_path)
+
+    assert index["123456"] == "MOD_123456_CardArt_abc.mtga"
+    assert index["1234567"] == "MOD_1234567_CardArt_xyz.mtga"
+
+
+def test_backup_index_ignores_non_backup_files(tmp_path):
+    (tmp_path / "123456_CardArt_abc.mtga").write_bytes(b"not a MOD_ file")
+    (tmp_path / "MOD_notes.txt").write_text("nope")
+    (tmp_path / "MOD_abc_CardArt.mtga").write_bytes(b"non-numeric art id")
+
+    assert _index_backup_bundles(tmp_path) == {}
+
+
+def test_recover_leaves_an_already_recorded_swap_alone(tmp_path):
+    backups = tmp_path / "backups"
+    backups.mkdir()
+    (backups / "MOD_123456_CardArt_abc.mtga").write_bytes(b"would fail to parse")
+    images = tmp_path / "images"
+    images.mkdir()
+    (images / "123456.png").write_bytes(b"my real recorded swap")
+
+    recovered_count, problem_messages = recover_images_from_backups(
+        ["123456"], backups, images
+    )
+
+    # Recorded swaps are authoritative: the bundle is never even opened.
+    assert recovered_count == 0
+    assert problem_messages == []
+    assert (images / "123456.png").read_bytes() == b"my real recorded swap"
+
+
+def test_recover_reports_a_missing_backup(tmp_path):
+    backups = tmp_path / "backups"
+    backups.mkdir()
+    images = tmp_path / "images"
+
+    recovered_count, problem_messages = recover_images_from_backups(
+        ["123456"], backups, images
+    )
+
+    assert recovered_count == 0
+    assert any("no backup found" in message for message in problem_messages)
+
+
+def test_recover_reports_an_unreadable_backup(tmp_path):
+    backups = tmp_path / "backups"
+    backups.mkdir()
+    (backups / "MOD_123456_CardArt_abc.mtga").write_bytes(b"not a unity bundle")
+    images = tmp_path / "images"
+
+    recovered_count, problem_messages = recover_images_from_backups(
+        ["123456"], backups, images
+    )
+
+    assert recovered_count == 0
+    assert len(problem_messages) == 1
+    assert not list(images.glob("*.png"))
+
+
+def test_recover_handles_a_missing_backup_directory(tmp_path):
+    recovered_count, problem_messages = recover_images_from_backups(
+        ["123456"], tmp_path / "nope", tmp_path / "images"
+    )
+
+    assert recovered_count == 0
+    assert any("Backup directory unavailable" in message for message in problem_messages)

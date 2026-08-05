@@ -275,6 +275,13 @@ some of the same cards, they'll be asked once whether to overwrite.
 Cards whose art hasn't been downloaded by MTG Arena yet are skipped and reported at the end —
 open those cards in the game once, then import again.
 
+**Already have swaps from before this feature existed?** Search or filter the card list to
+the cards you customised, then press **Recover swapped art from backups for all cards in the
+list below**. It rebuilds their images from `MTGA_Swapper_Backups` so you can export them
+without redoing the work. A backup is also written when you only change tags, so cards you
+never re-arted will come back with the game's own art — look through the folder before you
+export.
+
 Only import packs from people you trust. A pack can change card names, art, and styles in
 your database, and applying one replaces your own art for any card it covers. Your previous
 version of a replaced card is kept in `MTGA_Swapper_Backups` as a `.prepack.bak` file if you

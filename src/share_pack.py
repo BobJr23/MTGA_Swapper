@@ -27,6 +27,7 @@ LOCALIZATIONS_KEY = "Localizations_enUS"
 MAX_MEMBER_BYTES = 64 * 1024 * 1024
 MAX_TOTAL_BYTES = 512 * 1024 * 1024
 MAX_IMAGE_PIXELS = 64 * 1024 * 1024
+BACKUP_PREFIX = "MOD_"
 
 
 def normalize_art_id(art_id) -> str:
@@ -450,3 +451,79 @@ def apply_pack_images(
             problem_messages.append(f"ArtId {art_id}: {error}")
 
     return applied_count, problem_messages
+
+
+def _index_backup_bundles(backup_directory) -> dict:
+    """
+    Map ArtId -> MOD_ backup filename.
+
+    Anchored on the first underscore-separated field so 123456 never resolves to
+    1234567_CardArt_*.mtga -- the same hazard find_bundle_for_art_id guards against.
+    """
+    backup_index = {}
+    for filename in sorted(os.listdir(backup_directory)):
+        if not filename.startswith(BACKUP_PREFIX) or not filename.endswith(".mtga"):
+            continue
+        art_id_part, separator, _ = filename[len(BACKUP_PREFIX):].partition("_")
+        if separator and art_id_part.isascii() and art_id_part.isdigit():
+            backup_index.setdefault(normalize_art_id(art_id_part), filename)
+    return backup_index
+
+
+def recover_images_from_backups(
+    art_ids, backup_directory, images_directory
+) -> Tuple[int, List[str]]:
+    """
+    Rebuild swapped_images entries from MOD_ bundle backups.
+
+    For users who swapped art before share packs existed, the backups are the only record
+    of that art. A MOD_ backup is written by any operation that calls save_grp_id_info --
+    including a parallax unlock -- so it is NOT evidence the art was customised. The caller
+    chooses which ArtIds to recover; this reads only what it is given.
+
+    Texture 0 is taken: extract_textures_from_bundle sorts by size and colour complexity,
+    and index 0 is the card art in every bundle observed. Art swapped onto a later texture
+    recovers wrong, which the caller warns about.
+
+    An ArtId already present in images_directory is left untouched -- a recorded swap is
+    authoritative and its bundle is never opened.
+
+    Returns (recovered_count, problem_messages).
+    """
+    images_directory = Path(images_directory)
+    images_directory.mkdir(parents=True, exist_ok=True)
+
+    try:
+        backup_index = _index_backup_bundles(backup_directory)
+    except OSError as error:
+        return 0, [f"Backup directory unavailable: {error}"]
+
+    recovered_count = 0
+    problem_messages = []
+
+    for art_id in art_ids:
+        normalized_art_id = normalize_art_id(art_id)
+        destination_path = images_directory / image_filename_for(normalized_art_id, 0)
+        if destination_path.exists():
+            continue
+
+        backup_name = backup_index.get(normalized_art_id)
+        if not backup_name:
+            problem_messages.append(f"ArtId {normalized_art_id}: no backup found")
+            continue
+
+        try:
+            textures = extract_textures_from_bundle(
+                load_unity_bundle(os.path.join(backup_directory, backup_name))
+            )
+            if not textures:
+                problem_messages.append(
+                    f"ArtId {normalized_art_id}: backup holds no textures"
+                )
+                continue
+            textures[0].image.save(destination_path, format="PNG")
+            recovered_count += 1
+        except Exception as error:
+            problem_messages.append(f"ArtId {normalized_art_id}: {error}")
+
+    return recovered_count, problem_messages

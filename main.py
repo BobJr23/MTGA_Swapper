@@ -106,6 +106,7 @@ from src.share_pack import (
     get_swapped_images_directory,
     read_pack,
     record_swapped_image,
+    recover_images_from_backups,
     validate_changes_data,
 )
 
@@ -466,6 +467,13 @@ main_window_layout = [
                 ],
                 [
                     sg.Button("Export arts for all cards in the list below", key="-EXPORT_ALL_ARTS-", expand_x=True),
+                ],
+                [
+                    sg.Button(
+                        "Recover swapped art from backups for all cards in the list below",
+                        key="-RECOVER_BACKUP_ART-",
+                        expand_x=True,
+                    ),
                 ],
                 [
                     sg.Text("Sort by:"),
@@ -1037,6 +1045,61 @@ while True:
             sg.popup_auto_close(
                 f"Exported {len(artid_list)} arts to {export_directory}", auto_close_duration=2
             )
+
+    if event == "-RECOVER_BACKUP_ART-":
+        if not database_file_path:
+            sg.popup_error(
+                "Select your database file first.", title="No database selected"
+            )
+            continue
+
+        recover_art_ids = [
+            card.split()[4]
+            for card in filtered_search_results
+            if card.split()[0] not in lands_set
+        ]
+        if not recover_art_ids:
+            sg.popup_error("No cards in the list below.", title="Nothing to recover")
+            continue
+
+        if (
+            sg.popup_yes_no(
+                f"Recover swapped art for {len(recover_art_ids)} card(s) from your backups?\n\n"
+                "A backup is also written when you only change tags or unlock parallax, so "
+                "cards whose art you never replaced will come back with the game's own art. "
+                "Check the swapped_images folder before you export.",
+                title="Recover art from backups",
+            )
+            != "Yes"
+        ):
+            continue
+
+        sg.popup_quick_message(
+            "Reading backups, this may take a while. There will be a popup when completed",
+            auto_close_duration=2,
+            keep_on_top=False,
+        )
+
+        recovered_count, recover_problems = recover_images_from_backups(
+            recover_art_ids, backup_directory, swapped_images_directory
+        )
+
+        for recover_problem in recover_problems:
+            print(f"Recover art -> {recover_problem}")
+
+        recover_summary = (
+            f"Recovered {recovered_count} card art image(s) into swapped_images."
+        )
+        if recover_problems:
+            recover_summary += (
+                f"\n{len(recover_problems)} issue(s) - details printed to the console."
+            )
+        recover_summary += (
+            "\n\nEach came from the first texture in its bundle. If you used "
+            '"Next in bundle" when swapping any of these, redo that card by hand '
+            "before exporting."
+        )
+        sg.popup_ok(recover_summary, title="Recover Art From Backups")
 
     if event == "-UNLOCK_PARALLAX-":
         grpid_list = [
