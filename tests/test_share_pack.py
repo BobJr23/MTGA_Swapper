@@ -76,6 +76,14 @@ def test_filter_matches_art_ids_regardless_of_padding_or_type():
     assert filter_changes_for_art_ids(changes, {"001234"}) == changes
 
 
+def test_filter_normalizes_the_art_ids_it_is_given():
+    # An unpadded or int member must still match, or cards silently vanish
+    # from the pack instead of failing loudly.
+    changes = {"100119": {"ArtId": "001234", "Tags": ""}}
+    assert filter_changes_for_art_ids(changes, {"1234"}) == changes
+    assert filter_changes_for_art_ids(changes, {1234}) == changes
+
+
 def test_filter_narrows_crops_by_art_id():
     changes = {
         "100119": {"ArtId": "123456"},

@@ -68,7 +68,13 @@ def filter_changes_for_art_ids(changes_data: dict, art_ids: set) -> dict:
     stores the complete Cards row, so ArtId is present on every GrpId entry.
     The top-level "crops" key is not a GrpId entry -- it is itself keyed by
     ArtId -- so it is filtered separately and re-attached.
+
+    art_ids is normalized here rather than trusted: an unpadded or int member
+    would silently drop matching cards from the pack instead of failing loudly.
+    The returned dict shares its nested values with changes_data -- callers
+    serialize it, they do not mutate it.
     """
+    art_ids = {normalize_art_id(art_id) for art_id in art_ids}
     filtered_changes = {}
     for grp_id, card_values in changes_data.items():
         if grp_id == CROPS_KEY:
