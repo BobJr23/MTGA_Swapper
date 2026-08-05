@@ -4,6 +4,7 @@
 import pytest
 
 from src.share_pack import (
+    filter_changes_for_art_ids,
     image_filename_for,
     normalize_art_id,
     parse_image_filename,
@@ -58,3 +59,41 @@ def test_parse_rejects_unicode_digits_that_int_cannot_parse():
     # skipped, not crash the export that is walking the folder.
     assert parse_image_filename("123456_².png") is None
     assert parse_image_filename("².png") is None
+
+
+def test_filter_keeps_matching_cards_and_drops_the_rest():
+    changes = {
+        "100119": {"ArtId": "123456", "Tags": "1696804317"},
+        "100120": {"ArtId": "999999", "Tags": ""},
+    }
+    filtered = filter_changes_for_art_ids(changes, {"123456"})
+    assert filtered == {"100119": {"ArtId": "123456", "Tags": "1696804317"}}
+
+
+def test_filter_matches_art_ids_regardless_of_padding_or_type():
+    # save_grp_id_info writes whatever sqlite hands back, which can be an int.
+    changes = {"100119": {"ArtId": 1234, "Tags": ""}}
+    assert filter_changes_for_art_ids(changes, {"001234"}) == changes
+
+
+def test_filter_narrows_crops_by_art_id():
+    changes = {
+        "100119": {"ArtId": "123456"},
+        "crops": {
+            "123456": [{"path": "a", "format": "b", "x": 0, "y": 0, "z": 1, "w": 1, "generated": 0}],
+            "999999": [{"path": "c", "format": "d", "x": 0, "y": 0, "z": 1, "w": 1, "generated": 0}],
+        },
+    }
+    filtered = filter_changes_for_art_ids(changes, {"123456"})
+    assert set(filtered["crops"]) == {"123456"}
+
+
+def test_filter_omits_the_crops_key_when_nothing_matches():
+    changes = {"100119": {"ArtId": "123456"}, "crops": {"999999": []}}
+    filtered = filter_changes_for_art_ids(changes, {"123456"})
+    assert "crops" not in filtered
+
+
+def test_filter_skips_entries_with_no_art_id():
+    changes = {"100119": {"Tags": "1696804317"}}
+    assert filter_changes_for_art_ids(changes, {"123456"}) == {}

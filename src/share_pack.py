@@ -58,3 +58,34 @@ def parse_image_filename(filename: str) -> Optional[Tuple[str, int]]:
     if not (index_part.isascii() and index_part.isdigit()):
         return None
     return normalize_art_id(art_id_part), int(index_part)
+
+
+def filter_changes_for_art_ids(changes_data: dict, art_ids: set) -> dict:
+    """
+    Keep only the changes.json entries belonging to the given ArtIds.
+
+    Every write path into changes.json goes through save_grp_id_info, which
+    stores the complete Cards row, so ArtId is present on every GrpId entry.
+    The top-level "crops" key is not a GrpId entry -- it is itself keyed by
+    ArtId -- so it is filtered separately and re-attached.
+    """
+    filtered_changes = {}
+    for grp_id, card_values in changes_data.items():
+        if grp_id == CROPS_KEY:
+            continue
+        if not isinstance(card_values, dict):
+            continue
+        if normalize_art_id(card_values.get("ArtId", "")) in art_ids:
+            filtered_changes[grp_id] = card_values
+
+    crop_changes = changes_data.get(CROPS_KEY)
+    if isinstance(crop_changes, dict):
+        filtered_crops = {
+            art_id: crop_entries
+            for art_id, crop_entries in crop_changes.items()
+            if normalize_art_id(art_id) in art_ids
+        }
+        if filtered_crops:
+            filtered_changes[CROPS_KEY] = filtered_crops
+
+    return filtered_changes
