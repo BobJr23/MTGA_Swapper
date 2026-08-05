@@ -4,7 +4,11 @@
 # Deliberately manifest-free: the zip is simple enough to assemble by hand.
 
 import os
-from typing import Optional, Tuple
+import shutil
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+from PIL import Image
 
 SWAPPED_IMAGES_DIRECTORY_NAME = "swapped_images"
 CHANGES_MEMBER_NAME = "exported_changes.json"
@@ -95,3 +99,55 @@ def filter_changes_for_art_ids(changes_data: dict, art_ids: set) -> dict:
             filtered_changes[CROPS_KEY] = filtered_crops
 
     return filtered_changes
+
+
+def get_swapped_images_directory(user_config_directory) -> Path:
+    """Resolve (and create) the folder holding every card art the user has swapped in."""
+    images_directory = Path(user_config_directory) / SWAPPED_IMAGES_DIRECTORY_NAME
+    images_directory.mkdir(parents=True, exist_ok=True)
+    return images_directory
+
+
+def record_swapped_image(
+    source_image_path, art_id, texture_index: int, images_directory
+) -> Path:
+    """
+    Store the image a user just applied to a card, so it can be shared later.
+
+    The source file is stored rather than the resulting texture: replace_texture_in_bundle
+    does Image.open on this exact file, so keeping it reproduces the swap byte for byte.
+    Re-swapping the same texture overwrites the previous entry.
+    """
+    destination_path = Path(images_directory) / image_filename_for(art_id, texture_index)
+    if Path(source_image_path).suffix.lower() == ".png":
+        shutil.copyfile(source_image_path, destination_path)
+    else:
+        with Image.open(source_image_path) as source_image:
+            source_image.save(destination_path, format="PNG")
+    return destination_path
+
+
+def collect_pack_art_ids(images_directory) -> set:
+    """List the ArtIds that have a stored image, ignoring any stray files."""
+    images_directory = Path(images_directory)
+    if not images_directory.is_dir():
+        return set()
+
+    art_ids = set()
+    for entry in images_directory.iterdir():
+        if not entry.is_file():
+            continue
+        parsed_name = parse_image_filename(entry.name)
+        if parsed_name:
+            art_ids.add(parsed_name[0])
+    return art_ids
+
+
+def find_colliding_image_names(image_paths, images_directory) -> List[str]:
+    """Names in a pack that would overwrite art the user already swapped in themselves."""
+    images_directory = Path(images_directory)
+    return [
+        image_path.name
+        for image_path in image_paths
+        if (images_directory / image_path.name).exists()
+    ]

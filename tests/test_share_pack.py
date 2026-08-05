@@ -1,13 +1,20 @@
 # Unit tests for share pack creation and loading.
 # These cover the parts that need no MTGA install, no Unity bundles, and no GUI.
 
+from pathlib import Path
+
 import pytest
+from PIL import Image
 
 from src.share_pack import (
+    collect_pack_art_ids,
     filter_changes_for_art_ids,
+    find_colliding_image_names,
+    get_swapped_images_directory,
     image_filename_for,
     normalize_art_id,
     parse_image_filename,
+    record_swapped_image,
 )
 
 
@@ -105,3 +112,67 @@ def test_filter_omits_the_crops_key_when_nothing_matches():
 def test_filter_skips_entries_with_no_art_id():
     changes = {"100119": {"Tags": "1696804317"}}
     assert filter_changes_for_art_ids(changes, {"123456"}) == {}
+
+
+def test_get_swapped_images_directory_creates_it(tmp_path):
+    images_directory = get_swapped_images_directory(tmp_path)
+    assert images_directory == tmp_path / "swapped_images"
+    assert images_directory.is_dir()
+
+
+def test_record_copies_a_png_verbatim(tmp_path):
+    source = tmp_path / "my-art.png"
+    source.write_bytes(b"pretend-png-bytes")
+    images_directory = get_swapped_images_directory(tmp_path)
+
+    destination = record_swapped_image(source, "1234", 0, images_directory)
+
+    assert destination.name == "001234.png"
+    assert destination.read_bytes() == b"pretend-png-bytes"
+
+
+def test_record_converts_a_non_png_source(tmp_path):
+    source = tmp_path / "my-art.bmp"
+    Image.new("RGB", (2, 2), "red").save(source)
+    images_directory = get_swapped_images_directory(tmp_path)
+
+    destination = record_swapped_image(source, "123456", 1, images_directory)
+
+    assert destination.name == "123456_1.png"
+    with Image.open(destination) as saved_image:
+        assert saved_image.format == "PNG"
+
+
+def test_record_overwrites_a_previous_swap_of_the_same_texture(tmp_path):
+    images_directory = get_swapped_images_directory(tmp_path)
+    first = tmp_path / "first.png"
+    first.write_bytes(b"first")
+    second = tmp_path / "second.png"
+    second.write_bytes(b"second")
+
+    record_swapped_image(first, "123456", 0, images_directory)
+    destination = record_swapped_image(second, "123456", 0, images_directory)
+
+    assert destination.read_bytes() == b"second"
+    assert len(list(images_directory.iterdir())) == 1
+
+
+def test_collect_art_ids_ignores_stray_files(tmp_path):
+    images_directory = get_swapped_images_directory(tmp_path)
+    (images_directory / "123456.png").write_bytes(b"x")
+    (images_directory / "654321_2.png").write_bytes(b"x")
+    (images_directory / "notes.txt").write_text("ignore me")
+
+    assert collect_pack_art_ids(images_directory) == {"123456", "654321"}
+
+
+def test_collect_art_ids_on_a_missing_directory_is_empty(tmp_path):
+    assert collect_pack_art_ids(tmp_path / "nope") == set()
+
+
+def test_find_colliding_image_names(tmp_path):
+    images_directory = get_swapped_images_directory(tmp_path)
+    (images_directory / "123456.png").write_bytes(b"mine")
+    pack_images = [Path("/pack/123456.png"), Path("/pack/654321.png")]
+
+    assert find_colliding_image_names(pack_images, images_directory) == ["123456.png"]
