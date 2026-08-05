@@ -1064,10 +1064,10 @@ while True:
 
         if (
             sg.popup_yes_no(
-                f"Recover swapped art for {len(recover_art_ids)} card(s) from your backups?\n\n"
-                "A backup is also written when you only change tags or unlock parallax, so "
-                "cards whose art you never replaced will come back with the game's own art. "
-                "Check the swapped_images folder before you export.",
+                f"Recover swapped art for max of {len(recover_art_ids)} card(s) from your backups?\n\n"
+                "A backup is written when you change a card's art, change tags or unlock parallax, so "
+                "cards whose art you never replaced will come back with the game's own art in those instances. "
+                "Cards you have not modified will not be included",
                 title="Recover art from backups",
             )
             != "Yes"
@@ -1084,8 +1084,6 @@ while True:
             recover_art_ids, backup_directory, swapped_images_directory
         )
 
-        for recover_problem in recover_problems:
-            print(f"Recover art -> {recover_problem}")
 
         recover_summary = (
             f"Recovered {recovered_count} card art image(s) into swapped_images."
