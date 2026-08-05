@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import List, Optional, Tuple
 
 from PIL import Image
@@ -188,7 +188,12 @@ class SharePack:
     Call cleanup() when finished -- the contents live in a temp directory.
     """
 
-    def __init__(self, extraction_directory: Path, changes_path, image_paths: List[Path]):
+    def __init__(
+        self,
+        extraction_directory: Path,
+        changes_path: Optional[Path],
+        image_paths: List[Path],
+    ):
         self.extraction_directory = extraction_directory
         self.changes_path = changes_path
         self.image_paths = image_paths
@@ -203,13 +208,18 @@ def _is_expected_member(member_name: str) -> bool:
 
     Packs come from strangers, so anything else -- traversal, absolute paths,
     nested folders, unexpected file types -- is simply not extracted.
+
+    Any colon is rejected outright. On Windows a drive-relative member like
+    "images/D:123456.png" would otherwise slip through: os.path.basename strips
+    the "D:" so the name validates as an ArtId, and joining it re-anchors the
+    write to D:\\123456.png -- outside the extraction directory entirely.
     """
     normalized_name = member_name.replace("\\", "/")
     if normalized_name.endswith("/"):
         return False
     if normalized_name.startswith("/") or ".." in normalized_name.split("/"):
         return False
-    if len(normalized_name) > 1 and normalized_name[1] == ":":
+    if ":" in normalized_name:
         return False
 
     if normalized_name == CHANGES_MEMBER_NAME:
@@ -228,12 +238,13 @@ def read_pack(zip_path) -> SharePack:
     Raises ValueError if the zip is not a share pack at all.
     """
     extraction_directory = Path(tempfile.mkdtemp(prefix="mtga_share_pack_"))
-    extracted_images_directory = extraction_directory / "images"
-    extracted_images_directory.mkdir()
     changes_path = None
     image_paths = []
 
     try:
+        extracted_images_directory = extraction_directory / "images"
+        extracted_images_directory.mkdir()
+
         with zipfile.ZipFile(zip_path) as pack_file:
             for member_name in pack_file.namelist():
                 if not _is_expected_member(member_name):
@@ -245,9 +256,14 @@ def read_pack(zip_path) -> SharePack:
                     destination_path = extraction_directory / CHANGES_MEMBER_NAME
                     changes_path = destination_path
                 else:
-                    destination_path = extracted_images_directory / os.path.basename(
-                        normalized_name
+                    destination_path = (
+                        extracted_images_directory
+                        / PurePosixPath(normalized_name).name
                     )
+                    if destination_path in image_paths:
+                        # A zip may legally carry the same name twice.
+                        print(f"Share pack: ignoring duplicate member {member_name!r}")
+                        continue
                     image_paths.append(destination_path)
 
                 with pack_file.open(member_name) as source_file, open(

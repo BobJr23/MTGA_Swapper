@@ -284,8 +284,9 @@ def test_read_pack_ignores_path_traversal_and_absolute_members(tmp_path):
     pack = read_pack(zip_path)
     try:
         assert pack.image_paths == []
-        assert not (tmp_path / "evil.png").exists()
         assert list(pack.extraction_directory.rglob("evil.png")) == []
+        # Where a successful "../evil.png" escape would actually land.
+        assert not (pack.extraction_directory.parent / "evil.png").exists()
     finally:
         pack.cleanup()
 
@@ -299,5 +300,37 @@ def test_read_pack_ignores_non_image_members_under_images(tmp_path):
     pack = read_pack(zip_path)
     try:
         assert pack.image_paths == []
+    finally:
+        pack.cleanup()
+
+
+def test_read_pack_rejects_windows_drive_relative_members(tmp_path):
+    # "images/D:123456.png" would otherwise validate -- os.path.basename strips the
+    # "D:" so it parses as ArtId 123456 -- and then re-anchor the write to
+    # D:\123456.png, outside the extraction directory.
+    zip_path = tmp_path / "drive.zip"
+    with zipfile.ZipFile(zip_path, "w") as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("images/D:123456.png", b"escape")
+        pack_file.writestr("images/C:123456.png", b"escape")
+
+    pack = read_pack(zip_path)
+    try:
+        assert pack.image_paths == []
+    finally:
+        pack.cleanup()
+
+
+def test_read_pack_ignores_duplicate_image_members(tmp_path):
+    zip_path = tmp_path / "dupes.zip"
+    with zipfile.ZipFile(zip_path, "w") as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("images/123456.png", b"first")
+        with pytest.warns(UserWarning, match="Duplicate name"):
+            pack_file.writestr("images/123456.png", b"second")
+
+    pack = read_pack(zip_path)
+    try:
+        assert len(pack.image_paths) == 1
     finally:
         pack.cleanup()
