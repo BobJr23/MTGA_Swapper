@@ -13,6 +13,12 @@ from typing import List, Optional, Tuple
 
 from PIL import Image
 
+from .unity_bundle import (
+    extract_textures_from_bundle,
+    load_unity_bundle,
+    replace_texture_in_bundle,
+)
+
 SWAPPED_IMAGES_DIRECTORY_NAME = "swapped_images"
 CHANGES_MEMBER_NAME = "exported_changes.json"
 IMAGES_MEMBER_PREFIX = "images/"
@@ -280,3 +286,71 @@ def read_pack(zip_path) -> SharePack:
         raise
 
     return SharePack(extraction_directory, changes_path, sorted(image_paths))
+
+
+def find_bundle_for_art_id(asset_bundle_directory, art_id) -> Optional[str]:
+    """Locate the AssetBundle file holding a card's art, or None if it is not present."""
+    normalized_art_id = normalize_art_id(art_id)
+    for filename in sorted(os.listdir(asset_bundle_directory)):
+        if filename.startswith(normalized_art_id) and filename.endswith(".mtga"):
+            return filename
+    return None
+
+
+def apply_pack_images(
+    image_paths, asset_bundle_directory, backup_directory, images_directory
+) -> Tuple[int, List[str]]:
+    """
+    Write each pack image into the matching AssetBundle file.
+
+    Alongside the bundle write, each applied image gets a MOD_ bundle backup (so the
+    recipient's own "Load Changes Preset" restores it after a game update) and a copy in
+    the local swapped images folder (so they can pass the pack on).
+
+    No single failure aborts the batch: a missing bundle is expected, since MTGA downloads
+    card art on demand. Returns (applied_count, skip_messages).
+    """
+    applied_count = 0
+    skip_messages = []
+    backup_directory = Path(backup_directory)
+    backup_directory.mkdir(parents=True, exist_ok=True)
+    images_directory = Path(images_directory)
+    images_directory.mkdir(parents=True, exist_ok=True)
+
+    for image_path in image_paths:
+        parsed_name = parse_image_filename(image_path.name)
+        if not parsed_name:
+            skip_messages.append(f"{image_path.name}: unrecognized filename")
+            continue
+        art_id, texture_index = parsed_name
+
+        try:
+            bundle_name = find_bundle_for_art_id(asset_bundle_directory, art_id)
+            if not bundle_name:
+                skip_messages.append(
+                    f"ArtId {art_id}: no bundle found "
+                    "(this card's art may not be downloaded yet)"
+                )
+                continue
+
+            bundle_path = os.path.join(asset_bundle_directory, bundle_name)
+            unity_environment = load_unity_bundle(bundle_path)
+            textures = extract_textures_from_bundle(unity_environment)
+            if texture_index >= len(textures):
+                skip_messages.append(
+                    f"ArtId {art_id}: texture {texture_index} missing "
+                    f"(this bundle has {len(textures)})"
+                )
+                continue
+
+            replace_texture_in_bundle(
+                textures[texture_index], str(image_path), bundle_path, unity_environment
+            )
+            shutil.copyfile(bundle_path, backup_directory / f"MOD_{bundle_name}")
+            shutil.copyfile(image_path, images_directory / image_path.name)
+            applied_count += 1
+
+        except Exception as error:
+            skip_messages.append(f"ArtId {art_id}: {error}")
+
+    return applied_count, skip_messages

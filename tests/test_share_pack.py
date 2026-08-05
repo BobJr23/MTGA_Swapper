@@ -12,6 +12,7 @@ from src.share_pack import (
     collect_pack_art_ids,
     export_pack,
     filter_changes_for_art_ids,
+    find_bundle_for_art_id,
     find_colliding_image_names,
     get_swapped_images_directory,
     image_filename_for,
@@ -334,3 +335,26 @@ def test_read_pack_ignores_duplicate_image_members(tmp_path):
         assert len(pack.image_paths) == 1
     finally:
         pack.cleanup()
+
+
+def test_find_bundle_matches_on_the_padded_art_id(tmp_path):
+    (tmp_path / "123456_CardArt_abc.mtga").write_bytes(b"bundle")
+
+    assert find_bundle_for_art_id(tmp_path, "123456") == "123456_CardArt_abc.mtga"
+
+
+def test_find_bundle_does_not_match_a_shorter_art_id(tmp_path):
+    # "1234" unpadded would prefix-match 123456_CardArt and swap the wrong card.
+    (tmp_path / "123456_CardArt_abc.mtga").write_bytes(b"bundle")
+
+    assert find_bundle_for_art_id(tmp_path, "1234") is None
+
+
+def test_find_bundle_ignores_non_mtga_files(tmp_path):
+    (tmp_path / "123456_CardArt_abc.txt").write_text("not a bundle")
+
+    assert find_bundle_for_art_id(tmp_path, "123456") is None
+
+
+def test_find_bundle_returns_none_when_the_card_art_is_not_downloaded(tmp_path):
+    assert find_bundle_for_art_id(tmp_path, "123456") is None
