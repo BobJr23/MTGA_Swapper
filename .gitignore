@@ -7,4 +7,7 @@ dist
 build
 *.spec
 exported_changes.json
-.vscode/
+.vscode
+docs/
+.superpowers
+.pytest_cache

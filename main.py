@@ -97,10 +97,25 @@ from src.unity_bundle import (
     configure_unity_version,
     export_3d_meshes,
 )
+from src.share_pack import (
+    apply_pack_images,
+    collect_pack_art_ids,
+    export_pack,
+    filter_changes_for_art_ids,
+    find_colliding_image_names,
+    get_swapped_images_directory,
+    read_pack,
+    record_swapped_image,
+    recover_images_from_backups,
+    validate_changes_data,
+)
+
+# Card art the user has swapped in, kept so it can be exported as a share pack
+swapped_images_directory = get_swapped_images_directory(user_config_directory)
 from webbrowser import open as open_webbrowser
 import FreeSimpleGUI as sg
 from tkinter import Tk
-from tkinter.filedialog import askopenfilename, askdirectory
+from tkinter.filedialog import askopenfilename, askdirectory, asksaveasfilename
 from PIL import Image
 import io
 from typing import Dict, Any, Optional, List, Union, Tuple
@@ -224,6 +239,102 @@ else:
     all_cards_formatted = ["Select a database first"]
     displayed_cards = ["Select a database first"]
 
+def cards_table_columns() -> set:
+    """The real column names of the Cards table, for validating an untrusted preset."""
+    return {row[1] for row in database_cursor.execute("PRAGMA table_info(Cards)")}
+
+
+def import_share_pack(pack_path: str) -> None:
+    """
+    Apply a shared .zip pack: database changes first, then the card art images.
+
+    change_grp_id restores the user's own MOD_ bundle backups, so it has to run
+    before the pack's art is written or the restore would wipe it straight out again.
+    """
+    if not database_file_path or database_cursor is None:
+        sg.popup_error(
+            "Select your database file before importing a share pack.",
+            title="No database selected",
+        )
+        return
+
+    bundle_directory = os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+
+    try:
+        pack = read_pack(pack_path)
+    except Exception as error:
+        sg.popup_error(
+            f"Could not read that share pack:\n\n{error}", title="Invalid share pack"
+        )
+        return
+
+    try:
+        colliding_names = find_colliding_image_names(
+            pack.image_paths, swapped_images_directory
+        )
+        overwrite_existing = True
+        if colliding_names:
+            overwrite_existing = (
+                sg.popup_yes_no(
+                    f"{len(colliding_names)} card(s) in this pack already have custom art "
+                    "from your own swaps.\n\nOverwrite them with the pack's art?",
+                    title="Existing art found",
+                )
+                == "Yes"
+            )
+
+        images_to_apply = pack.image_paths
+        if not overwrite_existing:
+            skipped_names = set(colliding_names)
+            images_to_apply = [
+                image_path
+                for image_path in pack.image_paths
+                if image_path.name not in skipped_names
+            ]
+
+        sg.popup_quick_message(
+            "Applying share pack, this may take a couple of minutes. "
+            "There will be a popup when completed",
+            auto_close_duration=2,
+            keep_on_top=False,
+        )
+
+        if pack.changes_path:
+            with open(pack.changes_path, "r") as pack_changes_file:
+                validate_changes_data(json.load(pack_changes_file), cards_table_columns())
+            change_grp_id(
+                str(pack.changes_path),
+                database_cursor,
+                database_connection,
+                None,
+                bundle_directory,
+            )
+
+        applied_count, problem_messages = apply_pack_images(
+            images_to_apply,
+            bundle_directory,
+            backup_directory,
+            swapped_images_directory,
+        )
+
+        for problem_message in problem_messages:
+            print(f"Share pack -> {problem_message}")
+
+        import_summary = f"Applied {applied_count} card art image(s)."
+        if problem_messages:
+            import_summary += (
+                f"\n{len(problem_messages)} issue(s) - details printed to the console."
+            )
+        if colliding_names and not overwrite_existing:
+            import_summary += f"\nKept your own art for {len(colliding_names)} card(s)."
+        sg.popup_ok(import_summary, title="Share Pack Imported")
+
+    except Exception as error:
+        sg.popup_error(f"Share pack import failed:\n\n{error}", title="Import failed")
+    finally:
+        pack.cleanup()
+
+
 # Initialize card swap variables and deck filtering state
 first_card_to_swap, second_card_to_swap = None, None
 current_search_input = ""
@@ -272,6 +383,18 @@ main_window_layout = [
                     ),
                     sg.Button(
                         "Export Changes Preset", key="-EXPORT_PRESET-", expand_x=True
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Export Share Pack (.zip)",
+                        key="-EXPORT_SHARE_PACK-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Import Share Pack (.zip)",
+                        key="-IMPORT_SHARE_PACK-",
+                        expand_x=True,
                     ),
                 ],
                 [
@@ -346,6 +469,13 @@ main_window_layout = [
                     sg.Button("Export arts for all cards in the list below", key="-EXPORT_ALL_ARTS-", expand_x=True),
                 ],
                 [
+                    sg.Button(
+                        "Recover swapped art from backups for all cards in the list below",
+                        key="-RECOVER_BACKUP_ART-",
+                        expand_x=True,
+                    ),
+                ],
+                [
                     sg.Text("Sort by:"),
                     sg.Combo(
                         ["Name", "Set", "ArtType", "GrpID", "ArtID"],
@@ -411,10 +541,23 @@ while True:
         main_window["-CARD_LIST-"].update(sorted_card_list)
 
     if event == "-LOAD_PRESET-":
-        preset_path = open_file_dialog(
-            "Select your changes preset JSON file", "JSON files", "*.json"
+        preset_path = askopenfilename(
+            title="Select your changes preset (.json) or share pack (.zip)",
+            filetypes=[
+                ("Preset or share pack", ("*.json", "*.zip")),
+                ("All files", "*.*"),
+            ],
         )
-        if preset_path == "" or preset_path is None:
+        if not preset_path:
+            continue
+        if preset_path.lower().endswith(".zip"):
+            import_share_pack(preset_path)
+            continue
+        try:
+            with open(preset_path, "r") as preset_file:
+                validate_changes_data(json.load(preset_file), cards_table_columns())
+        except Exception as error:
+            sg.popup_error(f"Could not load that preset:\n\n{error}", title="Invalid preset")
             continue
         change_grp_id(preset_path, database_cursor, database_connection, None, asset_bundle_directory)
 
@@ -430,7 +573,90 @@ while True:
             sg.popup_auto_close(
                 "Exported changes to exported_changes.json", auto_close_duration=0.5
             )
-    
+    if event == "-EXPORT_SHARE_PACK-":
+        pack_art_ids = collect_pack_art_ids(swapped_images_directory)
+        if not pack_art_ids:
+            sg.popup_error(
+                'No swapped card art yet.\n\nUse "Change image" on a card first, '
+                "then export a share pack.",
+                title="Nothing to share",
+            )
+            continue
+
+        pack_scope_layout = [
+            [sg.Text(f"{len(pack_art_ids)} card art image(s) will be included.")],
+            [sg.Text("Which of your database changes should travel with them?")],
+            [
+                sg.Radio(
+                    "Only the cards I changed art for",
+                    "PACK_SCOPE",
+                    key="-PACK_SCOPE_FILTERED-",
+                    default=True,
+                )
+            ],
+            [
+                sg.Radio(
+                    "All my changes (full changes.json)",
+                    "PACK_SCOPE",
+                    key="-PACK_SCOPE_ALL-",
+                )
+            ],
+            [
+                sg.Button("Export", key="-CONFIRM_PACK_EXPORT-"),
+                sg.Button("Cancel", key="-CANCEL_PACK_EXPORT-"),
+            ],
+        ]
+        pack_scope_window = sg.Window(
+            "Export Share Pack",
+            pack_scope_layout,
+            modal=True,
+            finalize=True,
+            relative_location=(0, 0),
+        )
+        pack_scope_event, pack_scope_values = pack_scope_window.read()
+        pack_scope_window.close()
+        if pack_scope_event != "-CONFIRM_PACK_EXPORT-":
+            continue
+
+        with open(user_save_changes_path, "r") as changes_file:
+            pack_changes_data = json.load(changes_file)
+        if pack_scope_values["-PACK_SCOPE_FILTERED-"]:
+            pack_changes_data = filter_changes_for_art_ids(
+                pack_changes_data, pack_art_ids
+            )
+
+        pack_zip_path = asksaveasfilename(
+            title="Save share pack",
+            defaultextension=".zip",
+            initialfile="mtga_swap_pack.zip",
+            initialdir=str(Path.home() / "Downloads"),
+            filetypes=[("Share pack", "*.zip")],
+        )
+        if not pack_zip_path:
+            continue
+
+        try:
+            exported_image_count, exported_card_count = export_pack(
+                pack_zip_path, pack_changes_data, swapped_images_directory
+            )
+        except Exception as error:
+            sg.popup_error(f"Could not write the share pack:\n\n{error}", title="Export failed")
+            continue
+        sg.popup_ok(
+            f"Exported {exported_image_count} card art image(s) and "
+            f"{exported_card_count} card change(s) to:\n\n{pack_zip_path}",
+            title="Share Pack Exported",
+        )
+
+    if event == "-IMPORT_SHARE_PACK-":
+        share_pack_path = askopenfilename(
+            title="Select a share pack (.zip)",
+            filetypes=[("Share pack", "*.zip")],
+        )
+        if not share_pack_path:
+            continue
+        import_share_pack(share_pack_path)
+
     if event == "-CROP_EDITOR-":
         from src.crop_editor import create_crop_editor_window
 
@@ -819,6 +1045,59 @@ while True:
             sg.popup_auto_close(
                 f"Exported {len(artid_list)} arts to {export_directory}", auto_close_duration=2
             )
+
+    if event == "-RECOVER_BACKUP_ART-":
+        if not database_file_path:
+            sg.popup_error(
+                "Select your database file first.", title="No database selected"
+            )
+            continue
+
+        recover_art_ids = [
+            card.split()[4]
+            for card in filtered_search_results
+            if card.split()[0] not in lands_set
+        ]
+        if not recover_art_ids:
+            sg.popup_error("No cards in the list below.", title="Nothing to recover")
+            continue
+
+        if (
+            sg.popup_yes_no(
+                f"Recover swapped art for max of {len(recover_art_ids)} card(s) from your backups?\n\n"
+                "A backup is written when you change a card's art, change tags or unlock parallax, so "
+                "cards whose art you never replaced will come back with the game's own art in those instances. "
+                "Cards you have not modified will not be included",
+                title="Recover art from backups",
+            )
+            != "Yes"
+        ):
+            continue
+
+        sg.popup_quick_message(
+            "Reading backups, this may take a while. There will be a popup when completed",
+            auto_close_duration=2,
+            keep_on_top=False,
+        )
+
+        recovered_count, recover_problems = recover_images_from_backups(
+            recover_art_ids, backup_directory, swapped_images_directory
+        )
+
+
+        recover_summary = (
+            f"Recovered {recovered_count} card art image(s) into swapped_images."
+        )
+        if recover_problems:
+            recover_summary += (
+                f"\n{len(recover_problems)} issue(s) - details printed to the console."
+            )
+        recover_summary += (
+            "\n\nEach came from the first texture in its bundle. If you used "
+            '"Next in bundle" when swapping any of these, redo that card by hand '
+            "before exporting."
+        )
+        sg.popup_ok(recover_summary, title="Recover Art From Backups")
 
     if event == "-UNLOCK_PARALLAX-":
         grpid_list = [
@@ -2066,7 +2345,15 @@ while True:
                                 os.path.join(asset_bundle_directory, matching_bundle_files),
                                 backup_directory / f"MOD_{matching_bundle_files}"
                             )
-                            
+
+                            # Keep the art itself so it can be shared as a pack
+                            record_swapped_image(
+                                new_image_path,
+                                selected_card_data.art_id,
+                                texture_index,
+                                swapped_images_directory,
+                            )
+
                             display_texture_bytes = convert_texture_to_bytes(
                                 texture_data.image
                             )

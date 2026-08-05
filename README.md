@@ -19,6 +19,7 @@ ___
 - You can unlock any unique card style/border. See [11. Unlock card styles](#11-unlock-card-styles) for reference
 - Swap entire sets art & names (Ex. Spiderman and omenpaths). Huge thanks to Bassiuz for his script [here](https://github.com/Bassiuz/MTGA-Arena-Set-Swapper)
 - You can mass export cards arts with one click
+- You can share your card art swaps with other people as a single .zip share pack
 ___
 **exe file in [releases](https://github.com/BobJr23/MTGA_Swapper/releases)**
 
@@ -55,6 +56,7 @@ or join the MTGA Swapper discord server linked above
   - [10. Export Fonts](#10-export-fonts)
   - [11. Unlock card styles](#11-unlock-card-styles)
   - [12. Export your changes](#12-export-your-changes)
+  - [13. Share your swaps with others](#13-share-your-swaps-with-others)
 - [✨ Final In-Game Results](#-final-in-game-results)
 - [💬 Feedback & Support](#-feedback--support)
 
@@ -254,6 +256,39 @@ To remove styling effects, set the tag to 0
 ### 12. Export Your Changes
 
 After every game update, you may notice that your changes disappear. This is fine, just press the "Export Changes Preset" button on the main page to save your changes, and then "Load Changes Preset" to automatically make your changes.
+
+---
+
+### 13. Share Your Swaps With Others
+
+Every time you use **Change image** on a card, the app keeps a copy of that art in
+`C:\Users\<you>\.mtga_swapper\swapped_images`, named after the card's ArtId.
+
+Press **Export Share Pack (.zip)** to bundle that art together with your changes into one
+`.zip` you can send to anyone. You'll be asked whether to include only the cards you
+changed art for (recommended — much smaller) or all of your changes.
+
+Whoever receives it presses **Import Share Pack (.zip)** and picks the file. Their game gets
+your art and your card changes applied to their own files. If they've already customised
+some of the same cards, they'll be asked once whether to overwrite.
+
+Cards whose art hasn't been downloaded by MTG Arena yet are skipped and reported at the end —
+open those cards in the game once, then import again.
+
+**Already have swaps from before this feature existed?** Search or filter the card list to
+the cards you customised, then press **Recover swapped art from backups for all cards in the
+list below**. It rebuilds their images from `MTGA_Swapper_Backups` so you can export them
+without redoing the work. A backup is also written when you only change tags, so cards you
+never re-arted will come back with the game's own art — look through the folder before you
+export.
+
+Only import packs from people you trust. A pack can change card names, art, and styles in
+your database, and applying one replaces your own art for any card it covers. Your previous
+version of a replaced card is kept in `MTGA_Swapper_Backups` as a `.prepack.bak` file if you
+want it back.
+
+Art applied by **Set Swapper** is not included in a share pack — send the recipient the swap
+file instead.
 
 ## ✨ Final In-Game Results
 
