@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 
 from src.share_pack import (
+    MAX_MEMBER_BYTES,
     collect_pack_art_ids,
     export_pack,
     filter_changes_for_art_ids,
@@ -333,6 +334,20 @@ def test_read_pack_ignores_duplicate_image_members(tmp_path):
     pack = read_pack(zip_path)
     try:
         assert len(pack.image_paths) == 1
+    finally:
+        pack.cleanup()
+
+
+def test_read_pack_ignores_oversized_members(tmp_path):
+    # A hostile pack must not be able to stream unbounded data onto the disk.
+    zip_path = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("images/123456.png", b"\0" * (MAX_MEMBER_BYTES + 1))
+
+    pack = read_pack(zip_path)
+    try:
+        assert pack.image_paths == []
     finally:
         pack.cleanup()
 

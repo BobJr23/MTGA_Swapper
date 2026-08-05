@@ -23,6 +23,7 @@ SWAPPED_IMAGES_DIRECTORY_NAME = "swapped_images"
 CHANGES_MEMBER_NAME = "exported_changes.json"
 IMAGES_MEMBER_PREFIX = "images/"
 CROPS_KEY = "crops"
+MAX_MEMBER_BYTES = 64 * 1024 * 1024
 
 
 def normalize_art_id(art_id) -> str:
@@ -252,9 +253,18 @@ def read_pack(zip_path) -> SharePack:
         extracted_images_directory.mkdir()
 
         with zipfile.ZipFile(zip_path) as pack_file:
-            for member_name in pack_file.namelist():
+            for member in pack_file.infolist():
+                member_name = member.filename
                 if not _is_expected_member(member_name):
                     print(f"Share pack: ignoring unexpected member {member_name!r}")
+                    continue
+                if member.file_size > MAX_MEMBER_BYTES:
+                    # Card art is a few MB at most. Without this, one crafted
+                    # member streams unbounded and fills the recipient's disk.
+                    print(
+                        f"Share pack: ignoring oversized member {member_name!r} "
+                        f"({member.file_size} bytes)"
+                    )
                     continue
 
                 normalized_name = member_name.replace("\\", "/")
@@ -272,7 +282,9 @@ def read_pack(zip_path) -> SharePack:
                         continue
                     image_paths.append(destination_path)
 
-                with pack_file.open(member_name) as source_file, open(
+                # Open by ZipInfo, not name: with duplicate names, name lookup
+                # always resolves to the last entry.
+                with pack_file.open(member) as source_file, open(
                     destination_path, "wb"
                 ) as target_file:
                     shutil.copyfileobj(source_file, target_file)
@@ -308,10 +320,11 @@ def apply_pack_images(
     the local swapped images folder (so they can pass the pack on).
 
     No single failure aborts the batch: a missing bundle is expected, since MTGA downloads
-    card art on demand. Returns (applied_count, skip_messages).
+    card art on demand. Returns (applied_count, problem_messages) -- a problem message is
+    not always a skip, since a backup can fail after the art is already in the game.
     """
     applied_count = 0
-    skip_messages = []
+    problem_messages = []
     backup_directory = Path(backup_directory)
     backup_directory.mkdir(parents=True, exist_ok=True)
     images_directory = Path(images_directory)
@@ -320,14 +333,14 @@ def apply_pack_images(
     for image_path in image_paths:
         parsed_name = parse_image_filename(image_path.name)
         if not parsed_name:
-            skip_messages.append(f"{image_path.name}: unrecognized filename")
+            problem_messages.append(f"{image_path.name}: unrecognized filename")
             continue
         art_id, texture_index = parsed_name
 
         try:
             bundle_name = find_bundle_for_art_id(asset_bundle_directory, art_id)
             if not bundle_name:
-                skip_messages.append(
+                problem_messages.append(
                     f"ArtId {art_id}: no bundle found "
                     "(this card's art may not be downloaded yet)"
                 )
@@ -337,7 +350,7 @@ def apply_pack_images(
             unity_environment = load_unity_bundle(bundle_path)
             textures = extract_textures_from_bundle(unity_environment)
             if texture_index >= len(textures):
-                skip_messages.append(
+                problem_messages.append(
                     f"ArtId {art_id}: texture {texture_index} missing "
                     f"(this bundle has {len(textures)})"
                 )
@@ -346,11 +359,21 @@ def apply_pack_images(
             replace_texture_in_bundle(
                 textures[texture_index], str(image_path), bundle_path, unity_environment
             )
-            shutil.copyfile(bundle_path, backup_directory / f"MOD_{bundle_name}")
-            shutil.copyfile(image_path, images_directory / image_path.name)
             applied_count += 1
 
-        except Exception as error:
-            skip_messages.append(f"ArtId {art_id}: {error}")
+            # replace_texture_in_bundle has already committed its write, so the art
+            # IS in the game from here on. A backup failure must not be reported as
+            # a skip -- it is a card that works now and silently reverts later.
+            try:
+                shutil.copyfile(bundle_path, backup_directory / f"MOD_{bundle_name}")
+                shutil.copyfile(image_path, images_directory / image_path.name)
+            except Exception as error:
+                problem_messages.append(
+                    f"ArtId {art_id}: art applied but backup failed ({error}) "
+                    "-- a game update will revert this card"
+                )
 
-    return applied_count, skip_messages
+        except Exception as error:
+            problem_messages.append(f"ArtId {art_id}: {error}")
+
+    return applied_count, problem_messages
