@@ -97,6 +97,19 @@ from src.unity_bundle import (
     configure_unity_version,
     export_3d_meshes,
 )
+from src.share_pack import (
+    apply_pack_images,
+    collect_pack_art_ids,
+    export_pack,
+    filter_changes_for_art_ids,
+    find_colliding_image_names,
+    get_swapped_images_directory,
+    read_pack,
+    record_swapped_image,
+)
+
+# Card art the user has swapped in, kept so it can be exported as a share pack
+swapped_images_directory = get_swapped_images_directory(user_config_directory)
 from webbrowser import open as open_webbrowser
 import FreeSimpleGUI as sg
 from tkinter import Tk
@@ -2066,7 +2079,15 @@ while True:
                                 os.path.join(asset_bundle_directory, matching_bundle_files),
                                 backup_directory / f"MOD_{matching_bundle_files}"
                             )
-                            
+
+                            # Keep the art itself so it can be shared as a pack
+                            record_swapped_image(
+                                new_image_path,
+                                selected_card_data.art_id,
+                                texture_index,
+                                swapped_images_directory,
+                            )
+
                             display_texture_bytes = convert_texture_to_bytes(
                                 texture_data.image
                             )
