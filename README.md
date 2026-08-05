@@ -6,7 +6,7 @@
 ![GitHub Downloads](https://img.shields.io/github/downloads/bobjr23/mtga_swapper/total)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bobjr23/mtga_swapper/main.yml)
 
-Easily **edit, swap, and export assets** in *Magic: The Gathering Arena*, including:  
+Easily **edit, swap, and/or export assets** in *Magic: The Gathering Arena*, including:  
 🎨 Sleeves, 🧙‍♂️ Card Art, 🌄 Lands, 🧍 Avatars, 🪄 Emotes, 🐾 Pets, and more!
 
 
