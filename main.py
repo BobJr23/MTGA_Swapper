@@ -237,6 +237,95 @@ else:
     all_cards_formatted = ["Select a database first"]
     displayed_cards = ["Select a database first"]
 
+def import_share_pack(pack_path: str) -> None:
+    """
+    Apply a shared .zip pack: database changes first, then the card art images.
+
+    change_grp_id restores the user's own MOD_ bundle backups, so it has to run
+    before the pack's art is written or the restore would wipe it straight out again.
+    """
+    if not database_file_path:
+        sg.popup_error(
+            "Select your database file before importing a share pack.",
+            title="No database selected",
+        )
+        return
+
+    bundle_directory = os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+
+    try:
+        pack = read_pack(pack_path)
+    except Exception as error:
+        sg.popup_error(
+            f"Could not read that share pack:\n\n{error}", title="Invalid share pack"
+        )
+        return
+
+    try:
+        colliding_names = find_colliding_image_names(
+            pack.image_paths, swapped_images_directory
+        )
+        overwrite_existing = True
+        if colliding_names:
+            overwrite_existing = (
+                sg.popup_yes_no(
+                    f"{len(colliding_names)} card(s) in this pack already have custom art "
+                    "from your own swaps.\n\nOverwrite them with the pack's art?",
+                    title="Existing art found",
+                )
+                == "Yes"
+            )
+
+        images_to_apply = pack.image_paths
+        if not overwrite_existing:
+            skipped_names = set(colliding_names)
+            images_to_apply = [
+                image_path
+                for image_path in pack.image_paths
+                if image_path.name not in skipped_names
+            ]
+
+        sg.popup_quick_message(
+            "Applying share pack, this may take a couple of minutes. "
+            "There will be a popup when completed",
+            auto_close_duration=2,
+            keep_on_top=False,
+        )
+
+        if pack.changes_path:
+            change_grp_id(
+                str(pack.changes_path),
+                database_cursor,
+                database_connection,
+                None,
+                bundle_directory,
+            )
+
+        applied_count, problem_messages = apply_pack_images(
+            images_to_apply,
+            bundle_directory,
+            backup_directory,
+            swapped_images_directory,
+        )
+
+        for problem_message in problem_messages:
+            print(f"Share pack -> {problem_message}")
+
+        import_summary = f"Applied {applied_count} card art image(s)."
+        if problem_messages:
+            import_summary += (
+                f"\n{len(problem_messages)} issue(s) - details printed to the console."
+            )
+        if colliding_names and not overwrite_existing:
+            import_summary += f"\nKept your own art for {len(colliding_names)} card(s)."
+        sg.popup_ok(import_summary, title="Share Pack Imported")
+
+    except Exception as error:
+        sg.popup_error(f"Share pack import failed:\n\n{error}", title="Import failed")
+    finally:
+        pack.cleanup()
+
+
 # Initialize card swap variables and deck filtering state
 first_card_to_swap, second_card_to_swap = None, None
 current_search_input = ""
@@ -291,6 +380,11 @@ main_window_layout = [
                     sg.Button(
                         "Export Share Pack (.zip)",
                         key="-EXPORT_SHARE_PACK-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Import Share Pack (.zip)",
+                        key="-IMPORT_SHARE_PACK-",
                         expand_x=True,
                     ),
                 ],
@@ -431,10 +525,17 @@ while True:
         main_window["-CARD_LIST-"].update(sorted_card_list)
 
     if event == "-LOAD_PRESET-":
-        preset_path = open_file_dialog(
-            "Select your changes preset JSON file", "JSON files", "*.json"
+        preset_path = askopenfilename(
+            title="Select your changes preset (.json) or share pack (.zip)",
+            filetypes=[
+                ("Preset or share pack", ("*.json", "*.zip")),
+                ("All files", "*.*"),
+            ],
         )
-        if preset_path == "" or preset_path is None:
+        if not preset_path:
+            continue
+        if preset_path.lower().endswith(".zip"):
+            import_share_pack(preset_path)
             continue
         change_grp_id(preset_path, database_cursor, database_connection, None, asset_bundle_directory)
 
@@ -520,6 +621,15 @@ while True:
             f"{exported_card_count} card change(s) to:\n\n{pack_zip_path}",
             title="Share Pack Exported",
         )
+
+    if event == "-IMPORT_SHARE_PACK-":
+        share_pack_path = askopenfilename(
+            title="Select a share pack (.zip)",
+            filetypes=[("Share pack", "*.zip")],
+        )
+        if not share_pack_path:
+            continue
+        import_share_pack(share_pack_path)
 
     if event == "-CROP_EDITOR-":
         from src.crop_editor import create_crop_editor_window
