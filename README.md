@@ -275,6 +275,14 @@ some of the same cards, they'll be asked once whether to overwrite.
 Cards whose art hasn't been downloaded by MTG Arena yet are skipped and reported at the end —
 open those cards in the game once, then import again.
 
+Only import packs from people you trust. A pack can change card names, art, and styles in
+your database, and applying one replaces your own art for any card it covers. Your previous
+version of a replaced card is kept in `MTGA_Swapper_Backups` as a `.prepack.bak` file if you
+want it back.
+
+Art applied by **Set Swapper** is not included in a share pack — send the recipient the swap
+file instead.
+
 ## ✨ Final In-Game Results
 
 Get creative – make MTGA look how *you* want!
