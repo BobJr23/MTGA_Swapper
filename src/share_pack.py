@@ -49,10 +49,12 @@ def parse_image_filename(filename: str) -> Optional[Tuple[str, int]]:
         return None
 
     art_id_part, separator, index_part = stem.partition("_")
-    if not art_id_part.isdigit():
+    # isascii() matters: "²".isdigit() is True but int("²") raises, and a stray
+    # file must be skipped rather than crash an export mid-way.
+    if not (art_id_part.isascii() and art_id_part.isdigit()):
         return None
     if not separator:
         return normalize_art_id(art_id_part), 0
-    if not index_part.isdigit():
+    if not (index_part.isascii() and index_part.isdigit()):
         return None
     return normalize_art_id(art_id_part), int(index_part)

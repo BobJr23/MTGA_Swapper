@@ -51,3 +51,10 @@ def test_parse_rejects_non_numeric_names_and_indexes():
     assert parse_image_filename("lightning-bolt.png") is None
     assert parse_image_filename("123456_abc.png") is None
     assert parse_image_filename("123_456_2.png") is None
+
+
+def test_parse_rejects_unicode_digits_that_int_cannot_parse():
+    # "²".isdigit() is True but int("²") raises ValueError. A stray file must be
+    # skipped, not crash the export that is walking the folder.
+    assert parse_image_filename("123456_².png") is None
+    assert parse_image_filename("².png") is None
