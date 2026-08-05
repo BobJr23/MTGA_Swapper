@@ -3,8 +3,10 @@
 # alongside exported_changes.json, so a whole setup can be handed to someone else.
 # Deliberately manifest-free: the zip is simple enough to assemble by hand.
 
+import json
 import os
 import shutil
+import zipfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -151,3 +153,28 @@ def find_colliding_image_names(image_paths, images_directory) -> List[str]:
         for image_path in image_paths
         if (images_directory / image_path.name).exists()
     ]
+
+
+def export_pack(zip_path, changes_data: dict, images_directory) -> Tuple[int, int]:
+    """
+    Write a share pack.
+
+    exported_changes.json is always written, even when empty, so a pack is always
+    structurally complete. Returns (image_count, card_entry_count) for the summary popup.
+    """
+    images_directory = Path(images_directory)
+    image_files = []
+    if images_directory.is_dir():
+        image_files = sorted(
+            entry
+            for entry in images_directory.iterdir()
+            if entry.is_file() and parse_image_filename(entry.name)
+        )
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as pack_file:
+        pack_file.writestr(CHANGES_MEMBER_NAME, json.dumps(changes_data, indent=4))
+        for image_file in image_files:
+            pack_file.write(image_file, IMAGES_MEMBER_PREFIX + image_file.name)
+
+    card_entry_count = len([key for key in changes_data if key != CROPS_KEY])
+    return len(image_files), card_entry_count

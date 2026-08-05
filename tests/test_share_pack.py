@@ -1,6 +1,8 @@
 # Unit tests for share pack creation and loading.
 # These cover the parts that need no MTGA install, no Unity bundles, and no GUI.
 
+import json
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -8,6 +10,7 @@ from PIL import Image
 
 from src.share_pack import (
     collect_pack_art_ids,
+    export_pack,
     filter_changes_for_art_ids,
     find_colliding_image_names,
     get_swapped_images_directory,
@@ -176,3 +179,56 @@ def test_find_colliding_image_names(tmp_path):
     pack_images = [Path("/pack/123456.png"), Path("/pack/654321.png")]
 
     assert find_colliding_image_names(pack_images, images_directory) == ["123456.png"]
+
+
+def test_export_writes_the_changes_file_and_every_image(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+    (images_directory / "123456.png").write_bytes(b"art-one")
+    (images_directory / "654321_2.png").write_bytes(b"art-two")
+    zip_path = tmp_path / "pack.zip"
+
+    image_count, card_count = export_pack(zip_path, {"100119": {"ArtId": "123456"}}, images_directory)
+
+    assert (image_count, card_count) == (2, 1)
+    with zipfile.ZipFile(zip_path) as pack_file:
+        assert sorted(pack_file.namelist()) == [
+            "exported_changes.json",
+            "images/123456.png",
+            "images/654321_2.png",
+        ]
+        assert pack_file.read("images/123456.png") == b"art-one"
+        assert json.loads(pack_file.read("exported_changes.json")) == {"100119": {"ArtId": "123456"}}
+
+
+def test_export_leaves_stray_files_out_of_the_pack(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+    (images_directory / "123456.png").write_bytes(b"art")
+    (images_directory / "notes.txt").write_text("ignore me")
+
+    image_count, _ = export_pack(tmp_path / "pack.zip", {}, images_directory)
+
+    assert image_count == 1
+    with zipfile.ZipFile(tmp_path / "pack.zip") as pack_file:
+        assert "images/notes.txt" not in pack_file.namelist()
+
+
+def test_export_does_not_count_crops_as_a_card(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+    changes = {"100119": {"ArtId": "123456"}, "crops": {"123456": []}}
+
+    _, card_count = export_pack(tmp_path / "pack.zip", changes, images_directory)
+
+    assert card_count == 1
+
+
+def test_export_always_writes_the_changes_member_even_when_empty(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+
+    export_pack(tmp_path / "pack.zip", {}, images_directory)
+
+    with zipfile.ZipFile(tmp_path / "pack.zip") as pack_file:
+        assert json.loads(pack_file.read("exported_changes.json")) == {}
