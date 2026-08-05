@@ -6,6 +6,7 @@
 import json
 import os
 import shutil
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -178,3 +179,88 @@ def export_pack(zip_path, changes_data: dict, images_directory) -> Tuple[int, in
 
     card_entry_count = len([key for key in changes_data if key != CROPS_KEY])
     return len(image_files), card_entry_count
+
+
+class SharePack:
+    """
+    An extracted share pack.
+
+    Call cleanup() when finished -- the contents live in a temp directory.
+    """
+
+    def __init__(self, extraction_directory: Path, changes_path, image_paths: List[Path]):
+        self.extraction_directory = extraction_directory
+        self.changes_path = changes_path
+        self.image_paths = image_paths
+
+    def cleanup(self) -> None:
+        shutil.rmtree(self.extraction_directory, ignore_errors=True)
+
+
+def _is_expected_member(member_name: str) -> bool:
+    """
+    Allowlist the two things a pack may contain.
+
+    Packs come from strangers, so anything else -- traversal, absolute paths,
+    nested folders, unexpected file types -- is simply not extracted.
+    """
+    normalized_name = member_name.replace("\\", "/")
+    if normalized_name.endswith("/"):
+        return False
+    if normalized_name.startswith("/") or ".." in normalized_name.split("/"):
+        return False
+    if len(normalized_name) > 1 and normalized_name[1] == ":":
+        return False
+
+    if normalized_name == CHANGES_MEMBER_NAME:
+        return True
+    if not normalized_name.startswith(IMAGES_MEMBER_PREFIX):
+        return False
+
+    image_name = normalized_name[len(IMAGES_MEMBER_PREFIX) :]
+    return "/" not in image_name and parse_image_filename(image_name) is not None
+
+
+def read_pack(zip_path) -> SharePack:
+    """
+    Validate a share pack and extract its known members to a temp directory.
+
+    Raises ValueError if the zip is not a share pack at all.
+    """
+    extraction_directory = Path(tempfile.mkdtemp(prefix="mtga_share_pack_"))
+    extracted_images_directory = extraction_directory / "images"
+    extracted_images_directory.mkdir()
+    changes_path = None
+    image_paths = []
+
+    try:
+        with zipfile.ZipFile(zip_path) as pack_file:
+            for member_name in pack_file.namelist():
+                if not _is_expected_member(member_name):
+                    print(f"Share pack: ignoring unexpected member {member_name!r}")
+                    continue
+
+                normalized_name = member_name.replace("\\", "/")
+                if normalized_name == CHANGES_MEMBER_NAME:
+                    destination_path = extraction_directory / CHANGES_MEMBER_NAME
+                    changes_path = destination_path
+                else:
+                    destination_path = extracted_images_directory / os.path.basename(
+                        normalized_name
+                    )
+                    image_paths.append(destination_path)
+
+                with pack_file.open(member_name) as source_file, open(
+                    destination_path, "wb"
+                ) as target_file:
+                    shutil.copyfileobj(source_file, target_file)
+
+        if changes_path is None and not image_paths:
+            raise ValueError(
+                "This zip is not a share pack: it has no exported_changes.json and no images."
+            )
+    except Exception:
+        shutil.rmtree(extraction_directory, ignore_errors=True)
+        raise
+
+    return SharePack(extraction_directory, changes_path, sorted(image_paths))

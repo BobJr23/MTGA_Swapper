@@ -17,6 +17,7 @@ from src.share_pack import (
     image_filename_for,
     normalize_art_id,
     parse_image_filename,
+    read_pack,
     record_swapped_image,
 )
 
@@ -232,3 +233,71 @@ def test_export_always_writes_the_changes_member_even_when_empty(tmp_path):
 
     with zipfile.ZipFile(tmp_path / "pack.zip") as pack_file:
         assert json.loads(pack_file.read("exported_changes.json")) == {}
+
+
+def test_read_pack_round_trips_an_export(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+    (images_directory / "123456.png").write_bytes(b"art-one")
+    zip_path = tmp_path / "pack.zip"
+    export_pack(zip_path, {"100119": {"ArtId": "123456"}}, images_directory)
+
+    pack = read_pack(zip_path)
+    try:
+        assert [path.name for path in pack.image_paths] == ["123456.png"]
+        assert pack.image_paths[0].read_bytes() == b"art-one"
+        assert json.loads(pack.changes_path.read_text()) == {"100119": {"ArtId": "123456"}}
+    finally:
+        pack.cleanup()
+
+
+def test_cleanup_removes_the_extraction_directory(tmp_path):
+    images_directory = tmp_path / "images_source"
+    images_directory.mkdir()
+    export_pack(tmp_path / "pack.zip", {}, images_directory)
+
+    pack = read_pack(tmp_path / "pack.zip")
+    extraction_directory = pack.extraction_directory
+    pack.cleanup()
+
+    assert not extraction_directory.exists()
+
+
+def test_read_pack_rejects_a_zip_with_no_known_members(tmp_path):
+    zip_path = tmp_path / "random.zip"
+    with zipfile.ZipFile(zip_path, "w") as pack_file:
+        pack_file.writestr("holiday-photo.jpg", b"not a pack")
+
+    with pytest.raises(ValueError):
+        read_pack(zip_path)
+
+
+def test_read_pack_ignores_path_traversal_and_absolute_members(tmp_path):
+    zip_path = tmp_path / "evil.zip"
+    with zipfile.ZipFile(zip_path, "w") as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("../evil.png", b"escape")
+        pack_file.writestr("images/../../evil.png", b"escape")
+        pack_file.writestr("/tmp/evil.png", b"escape")
+        pack_file.writestr("images/nested/evil.png", b"escape")
+
+    pack = read_pack(zip_path)
+    try:
+        assert pack.image_paths == []
+        assert not (tmp_path / "evil.png").exists()
+        assert list(pack.extraction_directory.rglob("evil.png")) == []
+    finally:
+        pack.cleanup()
+
+
+def test_read_pack_ignores_non_image_members_under_images(tmp_path):
+    zip_path = tmp_path / "pack.zip"
+    with zipfile.ZipFile(zip_path, "w") as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("images/readme.txt", b"nope")
+
+    pack = read_pack(zip_path)
+    try:
+        assert pack.image_paths == []
+    finally:
+        pack.cleanup()
