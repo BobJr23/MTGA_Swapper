@@ -113,7 +113,7 @@ swapped_images_directory = get_swapped_images_directory(user_config_directory)
 from webbrowser import open as open_webbrowser
 import FreeSimpleGUI as sg
 from tkinter import Tk
-from tkinter.filedialog import askopenfilename, askdirectory
+from tkinter.filedialog import askopenfilename, askdirectory, asksaveasfilename
 from PIL import Image
 import io
 from typing import Dict, Any, Optional, List, Union, Tuple
@@ -289,6 +289,13 @@ main_window_layout = [
                 ],
                 [
                     sg.Button(
+                        "Export Share Pack (.zip)",
+                        key="-EXPORT_SHARE_PACK-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Button(
                         "Set Swapper (Swap entire sets)",
                         key="-SET_SWAPPER-",
                         expand_x=True,
@@ -443,7 +450,77 @@ while True:
             sg.popup_auto_close(
                 "Exported changes to exported_changes.json", auto_close_duration=0.5
             )
-    
+    if event == "-EXPORT_SHARE_PACK-":
+        pack_art_ids = collect_pack_art_ids(swapped_images_directory)
+        if not pack_art_ids:
+            sg.popup_error(
+                'No swapped card art yet.\n\nUse "Change image" on a card first, '
+                "then export a share pack.",
+                title="Nothing to share",
+            )
+            continue
+
+        pack_scope_layout = [
+            [sg.Text(f"{len(pack_art_ids)} card art image(s) will be included.")],
+            [sg.Text("Which of your database changes should travel with them?")],
+            [
+                sg.Radio(
+                    "Only the cards I changed art for",
+                    "PACK_SCOPE",
+                    key="-PACK_SCOPE_FILTERED-",
+                    default=True,
+                )
+            ],
+            [
+                sg.Radio(
+                    "All my changes (full changes.json)",
+                    "PACK_SCOPE",
+                    key="-PACK_SCOPE_ALL-",
+                )
+            ],
+            [
+                sg.Button("Export", key="-CONFIRM_PACK_EXPORT-"),
+                sg.Button("Cancel", key="-CANCEL_PACK_EXPORT-"),
+            ],
+        ]
+        pack_scope_window = sg.Window(
+            "Export Share Pack",
+            pack_scope_layout,
+            modal=True,
+            finalize=True,
+            relative_location=(0, 0),
+        )
+        pack_scope_event, pack_scope_values = pack_scope_window.read()
+        pack_scope_window.close()
+        if pack_scope_event != "-CONFIRM_PACK_EXPORT-":
+            continue
+
+        with open(user_save_changes_path, "r") as changes_file:
+            pack_changes_data = json.load(changes_file)
+        if pack_scope_values["-PACK_SCOPE_FILTERED-"]:
+            pack_changes_data = filter_changes_for_art_ids(
+                pack_changes_data, pack_art_ids
+            )
+
+        pack_zip_path = asksaveasfilename(
+            title="Save share pack",
+            defaultextension=".zip",
+            initialfile="mtga_swap_pack.zip",
+            initialdir=str(Path.home() / "Downloads"),
+            filetypes=[("Share pack", "*.zip")],
+        )
+        if not pack_zip_path:
+            continue
+
+        exported_image_count, exported_card_count = export_pack(
+            pack_zip_path, pack_changes_data, swapped_images_directory
+        )
+        sg.popup_ok(
+            f"Exported {exported_image_count} card art image(s) and "
+            f"{exported_card_count} card change(s) to:\n\n{pack_zip_path}",
+            title="Share Pack Exported",
+        )
+
     if event == "-CROP_EDITOR-":
         from src.crop_editor import create_crop_editor_window
 
