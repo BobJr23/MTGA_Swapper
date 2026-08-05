@@ -106,6 +106,7 @@ from src.share_pack import (
     get_swapped_images_directory,
     read_pack,
     record_swapped_image,
+    validate_changes_data,
 )
 
 # Card art the user has swapped in, kept so it can be exported as a share pack
@@ -237,6 +238,11 @@ else:
     all_cards_formatted = ["Select a database first"]
     displayed_cards = ["Select a database first"]
 
+def cards_table_columns() -> set:
+    """The real column names of the Cards table, for validating an untrusted preset."""
+    return {row[1] for row in database_cursor.execute("PRAGMA table_info(Cards)")}
+
+
 def import_share_pack(pack_path: str) -> None:
     """
     Apply a shared .zip pack: database changes first, then the card art images.
@@ -244,7 +250,7 @@ def import_share_pack(pack_path: str) -> None:
     change_grp_id restores the user's own MOD_ bundle backups, so it has to run
     before the pack's art is written or the restore would wipe it straight out again.
     """
-    if not database_file_path:
+    if not database_file_path or database_cursor is None:
         sg.popup_error(
             "Select your database file before importing a share pack.",
             title="No database selected",
@@ -293,6 +299,8 @@ def import_share_pack(pack_path: str) -> None:
         )
 
         if pack.changes_path:
+            with open(pack.changes_path, "r") as pack_changes_file:
+                validate_changes_data(json.load(pack_changes_file), cards_table_columns())
             change_grp_id(
                 str(pack.changes_path),
                 database_cursor,
@@ -537,6 +545,12 @@ while True:
         if preset_path.lower().endswith(".zip"):
             import_share_pack(preset_path)
             continue
+        try:
+            with open(preset_path, "r") as preset_file:
+                validate_changes_data(json.load(preset_file), cards_table_columns())
+        except Exception as error:
+            sg.popup_error(f"Could not load that preset:\n\n{error}", title="Invalid preset")
+            continue
         change_grp_id(preset_path, database_cursor, database_connection, None, asset_bundle_directory)
 
         sg.popup_auto_close("Preset loaded successfully!", auto_close_duration=1)
@@ -613,9 +627,13 @@ while True:
         if not pack_zip_path:
             continue
 
-        exported_image_count, exported_card_count = export_pack(
-            pack_zip_path, pack_changes_data, swapped_images_directory
-        )
+        try:
+            exported_image_count, exported_card_count = export_pack(
+                pack_zip_path, pack_changes_data, swapped_images_directory
+            )
+        except Exception as error:
+            sg.popup_error(f"Could not write the share pack:\n\n{error}", title="Export failed")
+            continue
         sg.popup_ok(
             f"Exported {exported_image_count} card art image(s) and "
             f"{exported_card_count} card change(s) to:\n\n{pack_zip_path}",

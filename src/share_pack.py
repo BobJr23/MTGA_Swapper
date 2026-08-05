@@ -23,7 +23,10 @@ SWAPPED_IMAGES_DIRECTORY_NAME = "swapped_images"
 CHANGES_MEMBER_NAME = "exported_changes.json"
 IMAGES_MEMBER_PREFIX = "images/"
 CROPS_KEY = "crops"
+LOCALIZATIONS_KEY = "Localizations_enUS"
 MAX_MEMBER_BYTES = 64 * 1024 * 1024
+MAX_TOTAL_BYTES = 512 * 1024 * 1024
+MAX_IMAGE_PIXELS = 64 * 1024 * 1024
 
 
 def normalize_art_id(art_id) -> str:
@@ -109,6 +112,32 @@ def filter_changes_for_art_ids(changes_data: dict, art_ids: set) -> dict:
             filtered_changes[CROPS_KEY] = filtered_crops
 
     return filtered_changes
+
+
+def validate_changes_data(changes_data: dict, allowed_columns) -> None:
+    """
+    Reject a changes payload whose keys would be interpolated into SQL.
+
+    change_grp_id builds "UPDATE Cards SET {columns}" by f-stringing the keys of each
+    entry, so a key like "ArtId = ?, Order_Title = ? WHERE 1=1 --" rewrites every row
+    in the table. Packs arrive from strangers, so every key is checked against the real
+    Cards columns before any of it reaches the database.
+
+    The GrpId keys themselves are safe -- change_grp_id passes them as bound parameters.
+    Raises ValueError naming the offending key.
+    """
+    permitted_keys = set(allowed_columns) | {LOCALIZATIONS_KEY}
+    for entry_key, entry_value in changes_data.items():
+        if entry_key == CROPS_KEY:
+            continue
+        if not isinstance(entry_value, dict):
+            raise ValueError(f"Entry {entry_key!r} is not an object.")
+        for column_name in entry_value:
+            if column_name not in permitted_keys:
+                raise ValueError(
+                    f"Entry {entry_key!r} sets unknown column {column_name!r}. "
+                    "Refusing to apply this file."
+                )
 
 
 def get_swapped_images_directory(user_config_directory) -> Path:
@@ -247,6 +276,7 @@ def read_pack(zip_path) -> SharePack:
     extraction_directory = Path(tempfile.mkdtemp(prefix="mtga_share_pack_"))
     changes_path = None
     image_paths = []
+    extracted_bytes = 0
 
     try:
         extracted_images_directory = extraction_directory / "images"
@@ -266,6 +296,12 @@ def read_pack(zip_path) -> SharePack:
                         f"({member.file_size} bytes)"
                     )
                     continue
+                if extracted_bytes + member.file_size > MAX_TOTAL_BYTES:
+                    raise ValueError(
+                        "This pack expands to more than "
+                        f"{MAX_TOTAL_BYTES // (1024 * 1024)} MB; refusing to extract it."
+                    )
+                extracted_bytes += member.file_size
 
                 normalized_name = member_name.replace("\\", "/")
                 if normalized_name == CHANGES_MEMBER_NAME:
@@ -300,12 +336,26 @@ def read_pack(zip_path) -> SharePack:
     return SharePack(extraction_directory, changes_path, sorted(image_paths))
 
 
-def find_bundle_for_art_id(asset_bundle_directory, art_id) -> Optional[str]:
-    """Locate the AssetBundle file holding a card's art, or None if it is not present."""
+def find_bundle_for_art_id(
+    asset_bundle_directory, art_id, bundle_filenames=None
+) -> Optional[str]:
+    """
+    Locate the AssetBundle file holding a card's art, or None if it is not present.
+
+    The ArtId must end at a boundary: a bare prefix test matches 1234567_CardArt_*.mtga
+    when looking up 123456, and because '7' sorts before '_' it wins every time -- which
+    would write one card's art into another card's bundle.
+    """
     normalized_art_id = normalize_art_id(art_id)
-    for filename in sorted(os.listdir(asset_bundle_directory)):
-        if filename.startswith(normalized_art_id) and filename.endswith(".mtga"):
-            return filename
+    if bundle_filenames is None:
+        bundle_filenames = sorted(os.listdir(asset_bundle_directory))
+
+    for filename in bundle_filenames:
+        if not filename.endswith(".mtga") or not filename.startswith(normalized_art_id):
+            continue
+        if filename[len(normalized_art_id):][:1].isdigit():
+            continue
+        return filename
     return None
 
 
@@ -330,6 +380,11 @@ def apply_pack_images(
     images_directory = Path(images_directory)
     images_directory.mkdir(parents=True, exist_ok=True)
 
+    try:
+        bundle_filenames = sorted(os.listdir(asset_bundle_directory))
+    except OSError as error:
+        return 0, [f"AssetBundle directory unavailable: {error}"]
+
     for image_path in image_paths:
         parsed_name = parse_image_filename(image_path.name)
         if not parsed_name:
@@ -338,7 +393,18 @@ def apply_pack_images(
         art_id, texture_index = parsed_name
 
         try:
-            bundle_name = find_bundle_for_art_id(asset_bundle_directory, art_id)
+            with Image.open(image_path) as probe_image:
+                image_width, image_height = probe_image.size
+            if image_width * image_height > MAX_IMAGE_PIXELS:
+                problem_messages.append(
+                    f"ArtId {art_id}: image is {image_width}x{image_height}, "
+                    "too large to apply"
+                )
+                continue
+
+            bundle_name = find_bundle_for_art_id(
+                asset_bundle_directory, art_id, bundle_filenames
+            )
             if not bundle_name:
                 problem_messages.append(
                     f"ArtId {art_id}: no bundle found "
@@ -365,7 +431,14 @@ def apply_pack_images(
             # IS in the game from here on. A backup failure must not be reported as
             # a skip -- it is a card that works now and silently reverts later.
             try:
-                shutil.copyfile(bundle_path, backup_directory / f"MOD_{bundle_name}")
+                backup_path = backup_directory / f"MOD_{bundle_name}"
+                if backup_path.exists():
+                    # Art made before share packs existed has no PNG on record, so this
+                    # backup is its only copy. Preserve it once, on the first overwrite.
+                    preserved_path = backup_path.with_suffix(".prepack.bak")
+                    if not preserved_path.exists():
+                        shutil.copyfile(backup_path, preserved_path)
+                shutil.copyfile(bundle_path, backup_path)
                 shutil.copyfile(image_path, images_directory / image_path.name)
             except Exception as error:
                 problem_messages.append(

@@ -10,6 +10,7 @@ from PIL import Image
 
 from src.share_pack import (
     MAX_MEMBER_BYTES,
+    apply_pack_images,
     collect_pack_art_ids,
     export_pack,
     filter_changes_for_art_ids,
@@ -21,6 +22,7 @@ from src.share_pack import (
     parse_image_filename,
     read_pack,
     record_swapped_image,
+    validate_changes_data,
 )
 
 
@@ -373,3 +375,74 @@ def test_find_bundle_ignores_non_mtga_files(tmp_path):
 
 def test_find_bundle_returns_none_when_the_card_art_is_not_downloaded(tmp_path):
     assert find_bundle_for_art_id(tmp_path, "123456") is None
+
+
+def test_validate_accepts_a_normal_payload():
+    changes = {"100119": {"ArtId": "123456", "Tags": "1696804317"}}
+    validate_changes_data(changes, {"ArtId", "Tags"})
+
+
+def test_validate_rejects_a_sql_injection_key():
+    # This exact key rewrites every row of Cards via change_grp_id's f-string SET clause.
+    changes = {"1": {"ArtId = ?, Order_Title = ? WHERE 1=1 --": 999999}}
+    with pytest.raises(ValueError):
+        validate_changes_data(changes, {"ArtId", "Order_Title"})
+
+
+def test_validate_allows_crops_and_localizations():
+    changes = {
+        "100119": {"ArtId": "123456", "Localizations_enUS": {"1": "Bolt"}},
+        "crops": {"123456": []},
+    }
+    validate_changes_data(changes, {"ArtId"})
+
+
+def test_validate_rejects_a_non_object_entry():
+    with pytest.raises(ValueError):
+        validate_changes_data({"100119": "not an object"}, {"ArtId"})
+
+
+def test_find_bundle_does_not_match_a_longer_art_id(tmp_path):
+    # '7' sorts before '_', so a bare prefix test picks the 7-digit card every time.
+    (tmp_path / "1234567_CardArt_xyz.mtga").write_bytes(b"wrong card")
+    (tmp_path / "123456_CardArt_abc.mtga").write_bytes(b"right card")
+
+    assert find_bundle_for_art_id(tmp_path, "123456") == "123456_CardArt_abc.mtga"
+    assert find_bundle_for_art_id(tmp_path, "1234567") == "1234567_CardArt_xyz.mtga"
+
+
+def test_find_bundle_accepts_a_precomputed_listing(tmp_path):
+    assert (
+        find_bundle_for_art_id(tmp_path, "123456", ["123456_CardArt_abc.mtga"])
+        == "123456_CardArt_abc.mtga"
+    )
+
+
+def test_read_pack_refuses_a_pack_that_exceeds_the_total_budget(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.share_pack.MAX_TOTAL_BYTES", 8)
+    zip_path = tmp_path / "big.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as pack_file:
+        pack_file.writestr("exported_changes.json", "{}")
+        pack_file.writestr("images/123456.png", b"\0" * 64)
+
+    with pytest.raises(ValueError):
+        read_pack(zip_path)
+
+
+def test_apply_pack_images_skips_an_image_with_too_many_pixels(tmp_path, monkeypatch):
+    # Monkeypatched rather than building a real 64-megapixel image.
+    monkeypatch.setattr("src.share_pack.MAX_IMAGE_PIXELS", 4)
+    images_source = tmp_path / "pack_images"
+    images_source.mkdir()
+    image_path = images_source / "123456.png"
+    Image.new("RGB", (8, 8), "red").save(image_path)
+    # Empty but present: otherwise the hoisted listing's OSError guard returns first
+    # and the pixel check never runs.
+    (tmp_path / "bundles").mkdir()
+
+    applied_count, problem_messages = apply_pack_images(
+        [image_path], tmp_path / "bundles", tmp_path / "backups", tmp_path / "store"
+    )
+
+    assert applied_count == 0
+    assert any("too large to apply" in message for message in problem_messages)
