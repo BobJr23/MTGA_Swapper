@@ -11,3 +11,4 @@ exported_changes.json
 docs/
 .superpowers
 .pytest_cache
+experimental/
