@@ -216,7 +216,7 @@ if (
             asset_bundle_directory = (
                 os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
             )
-            configure_unity_version(database_file_path, "2022.3.42f1")
+            configure_unity_version(database_file_path)
             if image_save_directory and database_file_path:
                 with open(user_config_file_path, "w") as config_file:
                     user_config["SavePath"] = str(Path(image_save_directory).as_posix())
@@ -825,7 +825,7 @@ while True:
                 config_file.write(sg.json.dumps(user_config, indent=4))
 
             # Configure Unity version and update GUI
-            configure_unity_version(database_file_path, "2022.3.42f1")
+            configure_unity_version(database_file_path)
             main_window["-CARD_LIST-"].update(displayed_cards)
             main_window["-CHANGE_ASSETS-"].update(
                 "Change Sleeves, Avatars, etc.", disabled=False

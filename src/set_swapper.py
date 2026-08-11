@@ -12,6 +12,7 @@ import requests
 import UnityPy
 from PIL import Image
 import FreeSimpleGUI as sg
+from src.bundle_crc import restore_bundle_crc
 from src.load_preset import save_grp_id_info
 
 
@@ -353,6 +354,18 @@ def perform_set_swap(
 
             with open(art_bundle_path, "wb") as f:
                 f.write(env_art.file.save())
+
+            # This re-save discards the CRC perform_image_swap's write would have needed,
+            # so restore it here instead -- after the last write to the bundle and before
+            # the backup below copies those bytes. One unfixable bundle must not abandon
+            # the rest of a set swap, so this warns rather than raising.
+            try:
+                print(restore_bundle_crc(art_bundle_path))
+            except Exception as crc_error:
+                print(
+                    f"Warning: {art_bundle_path.name} will not load in game "
+                    f"({crc_error})"
+                )
 
             # Backup the NEW asset file after changes
             shutil.copy(art_bundle_path, backup_dir / f"MOD_{art_bundle_path.name}")

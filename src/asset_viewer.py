@@ -10,6 +10,8 @@ from pathlib import Path
 import io
 import os
 
+from src.bundle_crc import restore_bundle_crc
+
 
 def remove_alpha_channel(image, should_remove_alpha=True) -> Image.Image:
     """
@@ -279,6 +281,11 @@ def replace_texture_in_bundle(
     with open(bundle_file_path, "wb") as bundle_file:
         bundle_file.write(unity_environment.file.save())
 
+    # MTGA refuses any bundle whose CRC no longer matches its download manifest, so the
+    # write above is not usable on its own. Kept in step with unity_bundle's copy of this
+    # function, which is the one the app actually calls.
+    print(restore_bundle_crc(bundle_file_path))
+
 
 def load_unity_bundle(bundle_file_path) -> UnityPy.Environment:
     """
@@ -294,7 +301,7 @@ def load_unity_bundle(bundle_file_path) -> UnityPy.Environment:
         return UnityPy.load(bundle_file_path)
     except UnityPy.exceptions.UnityVersionFallbackError as error:
         # Set fallback version and retry
-        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
+        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.62f2"
         print(
             f"Unity version error: {error}. Using fallback version {UnityPy.config.FALLBACK_UNITY_VERSION}."
         )

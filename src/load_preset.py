@@ -5,6 +5,8 @@ from pathlib import Path
 import os
 import shutil
 
+from src.bundle_crc import restore_bundle_crc
+
 
 def apply_crop_changes(crop_changes: dict, asset_bundle_path: str) -> None:
     """
@@ -186,6 +188,7 @@ def change_grp_id(
         backups = list(available_backups.glob("MOD_*.mtga"))
         backups.sort(key=os.path.getmtime)
         restored_count = 0
+        crc_failures = []
         for art in backups:
             matching_files = [
                 filename
@@ -194,13 +197,21 @@ def change_grp_id(
                 and filename.endswith(".mtga")
             ]
             if matching_files:
-                shutil.copy(
-                    art,
-                    os.path.join(asset_bundle_path, matching_files[0]),
-                )
+                restored_path = os.path.join(asset_bundle_path, matching_files[0])
+                shutil.copy(art, restored_path)
                 restored_count += 1
+                # Backups written before CRC restoration existed hold the right art with
+                # the wrong CRC, and a game update can re-release a card's art under a new
+                # filename carrying a different CRC. Either way the CRC to satisfy comes
+                # from the live filename we just wrote to, not from the backup's name.
+                try:
+                    restore_bundle_crc(restored_path)
+                except Exception as error:
+                    crc_failures.append(f"{matching_files[0]}: {error}")
         if restored_count > 0:
             print(f"Restored {restored_count} backup file(s)")
+        for failure in crc_failures:
+            print(f"Warning: restored art may not load in game -- {failure}")
 
         card_count = len(changes_data)
         total_localizations = 0

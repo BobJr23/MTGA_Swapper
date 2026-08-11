@@ -10,10 +10,11 @@ import os
 from typing import List, Tuple, Optional, Union
 from tkinter.filedialog import askopenfilename, askdirectory
 
+from .bundle_crc import expected_crc_for, restore_bundle_crc
 from .image_utils import remove_alpha_channel
 
 
-def configure_unity_version(database_path: str, fallback_version: str) -> None:
+def configure_unity_version(database_path: str) -> None:
     """
     Configure Unity version for asset bundle loading based on the game installation.
 
@@ -32,7 +33,7 @@ def configure_unity_version(database_path: str, fallback_version: str) -> None:
 
     except:
         # Use fallback version if detection fails
-        UnityPy.config.FALLBACK_UNITY_VERSION = fallback_version
+        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.62f2"
 
 
 def load_unity_bundle(bundle_file_path: str) -> UnityPy.Environment:
@@ -49,7 +50,7 @@ def load_unity_bundle(bundle_file_path: str) -> UnityPy.Environment:
         return UnityPy.load(bundle_file_path)
     except UnityPy.exceptions.UnityVersionFallbackError as error:
         # Set fallback version and retry
-        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.42f1"
+        UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.62f2"
         print(
             f"Unity version error: {error}. Using fallback version {UnityPy.config.FALLBACK_UNITY_VERSION}."
         )
@@ -209,13 +210,45 @@ def replace_texture_in_bundle(
         bundle_file_path: Path to the asset bundle file
         unity_environment: Unity environment object
     """
+    # Keep the mip chain the original texture had. MTGA's card art ships fully
+    # mipmapped, and without mips the art aliases badly wherever a card is drawn small
+    # (deck lists, the collection grid). set_image stops early once a level would fall
+    # below 4x4, so the count it settles on stays self-consistent with the data written.
+    original_mip_count = getattr(texture_data, "m_MipCount", None) or 1
+
     # Load the new image and replace the texture data
-    texture_data.image = Image.open(new_image_path)
+    with Image.open(new_image_path) as new_image:
+        texture_data.set_image(
+            new_image.copy(), mipmap_count=max(1, original_mip_count)
+        )
     texture_data.save()
+
+    # MTGA verifies each bundle against the CRC in its download manifest, so a rewritten
+    # bundle is refused outright and the card shows placeholder art. The CRC has to be
+    # restored before returning: every caller treats this write as committed, and the MOD_
+    # backups they copy afterwards must carry the corrected bytes too.
+    #
+    # Keep the pre-swap file only when there is a CRC to restore -- this same function
+    # also edits resources.assets, which is far too large to hold in memory for nothing.
+    crc_is_checked = expected_crc_for(bundle_file_path) is not None
+    original_bundle_bytes = (
+        Path(bundle_file_path).read_bytes() if crc_is_checked else None
+    )
 
     # Save the modified bundle back to file
     with open(bundle_file_path, "wb") as bundle_file:
         bundle_file.write(unity_environment.file.save())
+
+    if not crc_is_checked:
+        return
+
+    try:
+        print(restore_bundle_crc(bundle_file_path))
+    except Exception:
+        # An unloadable bundle shows the game's placeholder art, which is worse than no
+        # swap at all -- put the original back and let the caller report the failure.
+        Path(bundle_file_path).write_bytes(original_bundle_bytes)
+        raise
 
 
 def convert_texture_to_bytes(
