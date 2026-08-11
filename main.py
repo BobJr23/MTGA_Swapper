@@ -63,7 +63,7 @@ from src.updater import main as check_for_updates
 if check_for_updates(update_path):
     sys.exit(0)
 import src.sql_editor as database_manager
-from random import randint
+from time import time
 
 from src.upscaler import is_upscaling_available
 
@@ -935,7 +935,7 @@ while True:
                             )
                             if new_image_path not in ("", None):
                                 # Create backup of original image
-                                backup_image_path = f"{os.path.join(image_save_directory, token_card.art_id)}-token_backup.png"
+                                backup_image_path = f"{os.path.join(image_save_directory, token_card.art_id)}-{int(time())}.png"
                                 save_image_to_file(
                                     texture_data_list[0].image, backup_image_path, True
                                 )
@@ -1542,7 +1542,7 @@ while True:
                                                 )
                                                 if new_image_path not in ("", None):
                                                     # Create backup
-                                                    backup_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{texture_index}_backup{randint(1, 1000)}.png"
+                                                    backup_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{texture_index}_backup{int(time())}.png"
                                                     save_image_to_file(
                                                         current_texture.image,
                                                         backup_path,
@@ -2315,13 +2315,13 @@ while True:
                         if new_image_path not in ("", None):
                             # Create backup of original image
                             
-                            backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_noalpha{randint(1, 1000)}.png"
+                            backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_noalpha{int(time())}.png"
                             save_image_to_file(
                                 texture_data_list[texture_index].image,
                                 backup_image_path,
                                 True,
                             )
-                            backup_alpha_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_alpha{randint(1, 1000)}.png"
+                            backup_alpha_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_alpha{int(time())}.png"
                             save_image_to_file(
                                 texture_data_list[texture_index].image,
                                 backup_alpha_image_path,

@@ -284,7 +284,7 @@ def replace_texture_in_bundle(
     # MTGA refuses any bundle whose CRC no longer matches its download manifest, so the
     # write above is not usable on its own. Kept in step with unity_bundle's copy of this
     # function, which is the one the app actually calls.
-    print(restore_bundle_crc(bundle_file_path))
+    restore_bundle_crc(bundle_file_path)
 
 
 def load_unity_bundle(bundle_file_path) -> UnityPy.Environment:

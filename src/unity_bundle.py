@@ -311,7 +311,6 @@ def save_image_to_file(
 
         # Save the image
         image.save(file_path)
-        print(f"Image saved to: {file_path}")
         return image
 
     except Exception as error:
