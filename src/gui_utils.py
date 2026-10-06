@@ -26,7 +26,7 @@ def open_file_dialog(title: str, description: str, file_types: str) -> Optional[
     return Path(selected_file).as_posix() if selected_file else None
 
 
-def open_directory_dialog(title: str) -> str:
+def open_directory_dialog(title: str) -> Optional[str]:
     """
     Open a directory selection dialog.
 
@@ -37,7 +37,8 @@ def open_directory_dialog(title: str) -> str:
         Selected directory path as POSIX string
     """
     Tk().withdraw()
-    return Path(askdirectory(title=title)).as_posix()
+    selected_directory = askdirectory(title=title)
+    return Path(selected_directory).as_posix() if selected_directory else None
 
 
 def convert_pil_image_to_bytes(pil_image: Image.Image) -> bytes:

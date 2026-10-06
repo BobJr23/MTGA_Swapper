@@ -230,10 +230,12 @@ class SharePack:
         extraction_directory: Path,
         changes_path: Optional[Path],
         image_paths: List[Path],
+        warnings: Optional[List[str]] = None,
     ):
         self.extraction_directory = extraction_directory
         self.changes_path = changes_path
         self.image_paths = image_paths
+        self.warnings = warnings or []
 
     def cleanup(self) -> None:
         shutil.rmtree(self.extraction_directory, ignore_errors=True)
@@ -278,6 +280,7 @@ def read_pack(zip_path) -> SharePack:
     changes_path = None
     image_paths = []
     extracted_bytes = 0
+    warnings = []
 
     try:
         extracted_images_directory = extraction_directory / "images"
@@ -290,18 +293,16 @@ def read_pack(zip_path) -> SharePack:
                     print(f"Share pack: ignoring unexpected member {member_name!r}")
                     continue
                 if member.file_size > MAX_MEMBER_BYTES:
-                    # Card art is a few MB at most. Without this, one crafted
-                    # member streams unbounded and fills the recipient's disk.
-                    print(
-                        f"Share pack: ignoring oversized member {member_name!r} "
-                        f"({member.file_size} bytes)"
+                    warnings.append(
+                        f"{member_name} is {member.file_size / (1024 * 1024):.1f} MB "
+                        f"(recommended maximum {MAX_MEMBER_BYTES / (1024 * 1024):.0f} MB)."
                     )
-                    continue
                 if extracted_bytes + member.file_size > MAX_TOTAL_BYTES:
-                    raise ValueError(
-                        "This pack expands to more than "
-                        f"{MAX_TOTAL_BYTES // (1024 * 1024)} MB; refusing to extract it."
-                    )
+                    if extracted_bytes <= MAX_TOTAL_BYTES:
+                        warnings.append(
+                            "The pack expands to more than "
+                            f"{MAX_TOTAL_BYTES // (1024 * 1024)} MB."
+                        )
                 extracted_bytes += member.file_size
 
                 normalized_name = member_name.replace("\\", "/")
@@ -334,7 +335,7 @@ def read_pack(zip_path) -> SharePack:
         shutil.rmtree(extraction_directory, ignore_errors=True)
         raise
 
-    return SharePack(extraction_directory, changes_path, sorted(image_paths))
+    return SharePack(extraction_directory, changes_path, sorted(image_paths), warnings)
 
 
 def find_bundle_for_art_id(

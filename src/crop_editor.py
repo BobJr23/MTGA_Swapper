@@ -422,6 +422,7 @@ def create_crop_editor_window(
     # Keep track of filtered results
     filtered_crops = crop_data.copy()
     current_art_id = None
+    preview_keys = set()
 
     # Define the layout
     search_frame = [
@@ -480,6 +481,7 @@ def create_crop_editor_window(
         [
             sg.Button("Save Changes", key="-SAVE_EDIT-"),
             sg.Button("Revert", key="-REVERT_EDIT-"),
+            sg.Button("Multi-context Preview", key="-MULTI_PREVIEW-"),
             sg.Button("Create Row", key="-DUPLICATE_PATH-"),
             sg.Button("Delete Row", key="-DELETE_ROW-", button_color=("white", "red")),
         ],
@@ -571,6 +573,7 @@ def create_crop_editor_window(
                 filtered_crops = filter_crops_by_art_id(crop_data, art_id)
                 update_crop_table(filtered_crops)
                 clear_edit_fields()
+                selected_entry_index = None
 
         if event == "-CROP_TABLE-":
             # User selected a row in the crop table
@@ -579,6 +582,29 @@ def create_crop_editor_window(
                 if 0 <= selected_row < len(filtered_crops):
                     selected_entry_index = selected_row
                     load_entry_to_edit(filtered_crops[selected_row])
+
+        if event == "-MULTI_PREVIEW-":
+            try:
+                from src.crop_preview import create_preview_window
+                from src.visual_tools_ui import catalog_for_database
+                if selected_entry_index is not None and 0 <= selected_entry_index < len(filtered_crops):
+                    preview_path = filtered_crops[selected_entry_index].path
+                elif current_art_id:
+                    padded = current_art_id.zfill(6)
+                    preview_path = f"Assets/Core/CardArt/{padded[:-3]}000/{padded}_AIF"
+                else:
+                    raise ValueError("Select a card or crop row first.")
+                changed = create_preview_window(crop_conn, preview_path, catalog_for_database(database_file_path))
+                preview_keys.update((preview_path, context) for context in changed)
+                crop_data = [ArtCropData(*row) for row in crop_cursor.execute(
+                    "SELECT Path, Format, X, Y, Z, W, Generated FROM Crops").fetchall()]
+                filtered_crops = filter_crops_by_art_id(crop_data, current_art_id) if current_art_id else crop_data.copy()
+                selected_entry_index = None
+                update_crop_table(filtered_crops)
+                clear_edit_fields()
+                window["-TOTAL_COUNT-"].update(f"Total Entries: {len(crop_data)}")
+            except Exception as error:
+                sg.popup_error(f"Could not preview crops: {error}")
 
         if event == "-SAVE_EDIT-":
             # Save the edited values back to the entry
@@ -849,6 +875,20 @@ def create_crop_editor_window(
             ):
                 try:
                     crop_conn.commit()
+                    if preview_keys:
+                        try:
+                            from src.crop_preview import write_crop_changes
+                            write_crop_changes(
+                                [entry.to_tuple() for entry in crop_data
+                                 if (entry.path, entry.format_type) in preview_keys],
+                                changes_file_path)
+                        except Exception as error:
+                            sg.popup_error(
+                                "Database saved, but preview crops could not be exported to the changes preset.\n"
+                                "Fix the preset file and retry Apply Changes to Database.\n\n" + str(error),
+                                title="Preset export incomplete")
+                            continue
+                        preview_keys.clear()
                     sg.popup_ok(
                         "Database saved successfully!",
                         auto_close=True,
@@ -867,6 +907,7 @@ def create_crop_editor_window(
                 == "Yes"
             ):
                 # Close current connection and reload
+                preview_keys.clear()
                 crop_conn.rollback()  # Discard any uncommitted changes
                 crop_conn.close()
 

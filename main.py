@@ -59,6 +59,13 @@ with open(get_resource_path("update.json"), "r") as source_config:
 
 print(f"MTGA Swapper Version: {version if version else 'v0.0.0'}")
 
+from src.modern_ui import configure_theme, main_layout, Workspace, preview_bytes, card_editor_layout, asset_editor_layout
+try:
+    with open(user_config_file_path, "r") as appearance_file:
+        appearance_mode = json.load(appearance_file).get("Theme", "Dark")
+except (OSError, ValueError, AttributeError):
+    appearance_mode = "Dark"
+configure_theme(appearance_mode)
 from src.updater import main as check_for_updates
 if check_for_updates(update_path):
     sys.exit(0)
@@ -121,8 +128,7 @@ import io
 from typing import Dict, Any, Optional, List, Union, Tuple
 
 
-# Set GUI theme for dark appearance
-sg.theme("DarkBlue3")
+# Shared dark desktop styling is initialized before the updater and other dialogs.
 
 
 # Initialize configuration directory and file
@@ -157,13 +163,7 @@ is_alternate = False
 database_file_path = find_mtga_db_path()
 lands_set = ("island", "forest", "mountain", "plains", "wastes", "swamp", "snowcoveredforest", "snowcoveredisland", "snowcoveredmountain", "snowcoveredplains", "snowcoveredswamp")
 # Load configuration from file or initialize with defaults
-if (
-    database_file_path or sg.popup_yes_no(
-        "Do you want to load from config file?",
-        title="Load Config",
-    )
-    == "Yes"
-):
+if user_config_file_path.exists():
     # Load existing configuration
     with open(user_config_file_path, "r") as config_file:
         try:
@@ -211,12 +211,12 @@ if (
 
             displayed_cards = all_cards_formatted
             filtered_search_results = displayed_cards
-            if not image_save_directory:
-                image_save_directory = sg.popup_get_folder("Select Image Save Folder")
-            asset_bundle_directory = (
-                os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
-            )
-            configure_unity_version(database_file_path)
+            # Missing paths are configured from the workspace Settings page.
+            if database_file_path:
+                asset_bundle_directory = (
+                    os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+                )
+                configure_unity_version(database_file_path)
             if image_save_directory and database_file_path:
                 with open(user_config_file_path, "w") as config_file:
                     user_config["SavePath"] = str(Path(image_save_directory).as_posix())
@@ -226,10 +226,6 @@ if (
             database_file_path = None
             all_cards_formatted = ["Select a database first"]
             displayed_cards = ["Select a database first"]
-            sg.popup_error(
-                "Invalid or missing database file. Please select a valid .mtga file.",
-                auto_close_duration=3,
-            )
             
 else:
     # Initialize with empty configuration
@@ -267,6 +263,14 @@ def import_share_pack(pack_path: str) -> None:
             f"Could not read that share pack:\n\n{error}", title="Invalid share pack"
         )
         return
+
+    if pack.warnings:
+        sg.popup_ok(
+            "This share pack exceeds the recommended size limits:\n\n"
+            + "\n".join(pack.warnings)
+            + "\n\nThe pack will still be imported.",
+            title="Large share pack",
+        )
 
     try:
         colliding_names = find_colliding_image_names(
@@ -342,190 +346,120 @@ is_using_decklist_filter = False
 cards_from_imported_deck = None
 
 
-# Create main GUI layout
-main_window_layout = [
-    [
-        sg.Frame(
-            "",
-            [
-                [
-                    sg.Button(
-                        "Select database file & image save location",
-                        key="-SELECT_DATABASE-",
-                        size=(35, 1),
-                        pad=(5, 5),
-                    ),
-                    sg.Button("Swap Arts", key="-SWAP_ARTS-", size=(15, 1), pad=(5, 5)),
-                    sg.Button(
-                        "Load Decklist", key="-LOAD_DECKLIST-", size=(15, 1), pad=(5, 5)
-                    ),
-                ],
-                [
-                    sg.Button(
-                        (
-                            "Select database and image save location before changing sleeves and avatars"
-                            if database_file_path is None
-                            else "Change Sleeves, Avatars, etc."
-                        ),
-                        key="-CHANGE_ASSETS-",
-                        disabled=database_file_path is None,
-                        size=(35, 1),
-                    ),
-                    sg.Button(
-                        "Export Fonts", key="-EXPORT_FONTS-", size=(15, 1), pad=(5, 5)
-                    ),
-                    sg.Button("Crop Editor", key="-CROP_EDITOR-", size=(15, 1), pad=(5, 5)),
-                ],
-                [
-                    sg.Button("Search tokens", key="-SEARCH_TOKENS-", expand_x=True),
-                    sg.Button(
-                        "Load Changes Preset", key="-LOAD_PRESET-", expand_x=True
-                    ),
-                    sg.Button(
-                        "Export Changes Preset", key="-EXPORT_PRESET-", expand_x=True
-                    ),
-                ],
-                [
-                    sg.Button(
-                        "Export Share Pack (.zip)",
-                        key="-EXPORT_SHARE_PACK-",
-                        expand_x=True,
-                    ),
-                    sg.Button(
-                        "Import Share Pack (.zip)",
-                        key="-IMPORT_SHARE_PACK-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Button(
-                        "Set Swapper (Swap entire sets)",
-                        key="-SET_SWAPPER-",
-                        expand_x=True,
-                        disabled=database_file_path is None,
-                    ),
-                ],
-                [sg.Button("Join Discord Server", key="-JOIN_DISCORD-", expand_x=True)],
-                [
-                    sg.Input(
-                        "Database: "
-                        + (database_file_path if database_file_path else "None"),
-                        key="DATABASE_DISPLAY",
-                        readonly=True,
-                        font=("Segoe UI", 8),
-                        size=(80, 1),
-                    )
-                ],
-                [
-                    sg.Input(
-                        "Image Save Location: "
-                        + (image_save_directory if image_save_directory else "None"),
-                        key="IMAGE_SAVE_DISPLAY",
-                        readonly=True,
-                        font=("Segoe UI", 8),
-                        size=(80, 1),
-                    )
-                ],
-            ],
-            relief=sg.RELIEF_RIDGE,
-        )
-    ],
-    [
-        sg.Frame(
-            "Search Cards",
-            [
-                [
-                    sg.Text(
-                        "Search by any of these attributes (Format: Name, Set, ArtType, GrpID, ArtID)",
-                        justification="left",
-                    )
-                ],
-                [
-                    sg.Input(
-                        size=(40, 1),
-                        enable_events=True,
-                        key="-SEARCH_INPUT-",
-                        pad=(5, 5),
-                    ),
-                    sg.Checkbox(
-                        "Use Decklist",
-                        key="-USE_DECKLIST-",
-                        default=is_using_decklist_filter,
-                        enable_events=True,
-                    ),
-                ],
-                [
-                    sg.Button(
-                        "Unlock Parallax Style for all cards in the list below",
-                        key="-UNLOCK_PARALLAX-",
-                    ),
-                    sg.Button(
-                        "Backup changes for all cards in the list below",
-                        key="-LOAD_OLD_CHANGES-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Button("Export arts for all cards in the list below", key="-EXPORT_ALL_ARTS-", expand_x=True),
-                ],
-                [
-                    sg.Button(
-                        "Recover swapped art from backups for all cards in the list below",
-                        key="-RECOVER_BACKUP_ART-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Text("Sort by:"),
-                    sg.Combo(
-                        ["Name", "Set", "ArtType", "GrpID", "ArtID"],
-                        default_value="Name",
-                        key="-SORT_BY-",
-                        enable_events=True,
-                        readonly=True,
-                        size=(15, 1),
-                    ),
-                ],
-                [
-                    sg.Text(
-                        f"{'Name':<30} {'Set':<7} {'ArtType':<12} {'GrpID':<8} {'ArtID':<8}",
-                        font=("Courier New", 10, "bold"),
-                    )
-                ],
-                [
-                    sg.Listbox(
-                        displayed_cards,
-                        size=(70, 20),
-                        enable_events=True,
-                        key="-CARD_LIST-",
-                        pad=(5, 5),
-                        font=("Courier New", 10),
-                    )
-                ],
-            ],
-            relief=sg.RELIEF_GROOVE,
-            expand_x=True,
-        )
-    ],
-]
-
-# Create main application window
-main_window = sg.Window(
-    "MTGA Swapper " + version if version else "",
-    main_window_layout,
-    grab_anywhere=True,
-    finalize=True,
-    font=("Segoe UI", 10),
-    element_justification="center",
-    background_color="#1B2838",
-    relative_location=(0, 0),
+# Build the sidebar, searchable library, preview inspector and settings pages.
+main_window_layout = main_layout(
+    displayed_cards, database_file_path, image_save_directory, version,
+    is_upscaling_available,
 )
+main_window = sg.Window(
+    "MTGA Swapper " + (version or ""), main_window_layout,
+    finalize=True, font=("Segoe UI", 10), background_color=sg.theme_background_color(),
+    resizable=True, margins=(0, 0), location=(40, 30),
+)
+screen_width, screen_height = main_window.get_screen_size()
+main_window.set_size((min(main_window.size[0], screen_width - 80),
+                      min(main_window.size[1], screen_height - 100)))
+main_window.set_min_size((min(main_window.size[0], 1000), 480))
+
+filtered_search_results = []
+
+def set_workspace_filtered(cards):
+    global filtered_search_results
+    filtered_search_results = cards
+
+
+def save_workspace_theme(mode):
+    user_config["Theme"] = mode
+    with open(user_config_file_path, "w") as config_file:
+        json.dump(user_config, config_file, indent=4)
+
+
+def workspace_context():
+    return dict(cards=all_cards_formatted, database=database_file_path,
+                deck=cards_from_imported_deck, set_filtered=set_workspace_filtered,
+                save_theme=save_workspace_theme)
+
+
+def load_workspace_card(formatted):
+    card = MTGACard(*formatted.split())
+    card.art_id = card.art_id.zfill(6)
+    bundles = Path(database_file_path).parent.parent / "AssetBundle"
+    bundle = next((path for path in sorted(bundles.glob(card.art_id + "*.mtga"))), None)
+    if bundle is None:
+        raise FileNotFoundError("Could not locate this card's asset file. Download it in Arena first.")
+    images, textures, matching_bundle = get_card_texture_data(card, database_file_path, ret_matching=True)
+    if not textures or not images:
+        raise ValueError("No image textures found for this card.")
+    bundle = bundles / matching_bundle
+    return dict(card=card, bundle=bundle, index=0, formatted=formatted,
+                bundle_original=bundle.read_bytes()), textures[0].image.copy()
+
+
+def apply_workspace_card(target, image):
+    # Reuse the existing texture writer, original-image backups and pack recording.
+    import tempfile
+    if not image_save_directory:
+        raise ValueError("Choose an image export folder in Settings before swapping card art.")
+    card, bundle, index = target['card'], target['bundle'], target['index']
+    if bundle.read_bytes() != target['bundle_original']:
+        raise ValueError("This card changed outside the workspace. Select it again before applying.")
+    environment = load_unity_bundle(str(bundle))
+    texture = extract_textures_from_bundle(environment)[index]
+    width, height = texture.image.size
+    stem = f"{card.name.replace('/', '-')}-{index}-{width}x{height}_backup{int(time())}"
+    save_image_to_file(texture.image, str(Path(image_save_directory) / (stem + '_noalpha.png')), True)
+    save_image_to_file(texture.image, str(Path(image_save_directory) / (stem + '_alpha.png')), False)
+    with tempfile.TemporaryDirectory(prefix='mtga_replacement_') as temporary:
+        replacement_file = Path(temporary) / 'replacement.png'
+        image.save(replacement_file, format='PNG')
+        replace_texture_in_bundle(texture, str(replacement_file), str(bundle), environment)
+        shutil.copy(bundle, backup_directory / ('MOD_' + bundle.name))
+        record_swapped_image(str(replacement_file), card.art_id, index, swapped_images_directory)
+    target['bundle_original'] = bundle.read_bytes()
+
+
+def apply_workspace_asset(target, image):
+    # Cosmetic swaps use the same image backups, CRC writer and MOD_ backup
+    # location as the legacy asset gallery, with an exact catalog texture.
+    import tempfile
+    if not image_save_directory:
+        raise ValueError("Choose an image export folder in Settings before swapping assets.")
+    record = target['record']
+    if record.file.read_bytes() != target['bundle_original']:
+        raise ValueError("This asset changed outside the workspace. Select it again before applying.")
+    texture = target['reader'].read()
+    save_image_to_file(texture.image,
+                       str(Path(image_save_directory) / f"{record.bundle}-{target['reader'].path_id}_backup{int(time())}.png"),
+                       False)
+    with tempfile.TemporaryDirectory(prefix='mtga_replacement_') as temporary:
+        replacement_file = Path(temporary) / 'replacement.png'
+        image.save(replacement_file, format='PNG')
+        replace_texture_in_bundle(texture, str(replacement_file), str(record.file), target['environment'])
+        shutil.copy(record.file, backup_directory / ('MOD_' + record.file.name))
+
+
+workspace = Workspace(main_window, workspace_context, load_workspace_card,
+                      apply_workspace_card,
+                      upscale_card_image if is_upscaling_available else None,
+                      apply_asset=apply_workspace_asset)
 
 # Main GUI Event Loop
 while True:
     event, values = main_window.read()
     if event in (sg.WIN_CLOSED, "Exit"):
         break
+
+    if workspace.handle(event, values):
+        continue
+
+    if event == "-OPEN_BACKUPS-":
+        os.startfile(str(backup_directory))
+        continue
+
+    if event == "-OPEN_CARD_EDITOR-":
+        if not workspace.target or 'card' not in workspace.target:
+            continue
+        values["-CARD_LIST-"] = [workspace.target['formatted']]
 
     if event == "-JOIN_DISCORD-":
         open_webbrowser("https://discord.gg/339qjyVc8C")
@@ -657,6 +591,19 @@ while True:
             continue
         import_share_pack(share_pack_path)
 
+    if event in ("-ROLE_BROWSER-", "-THEME_EDITOR-"):
+        if not database_file_path:
+            sg.popup_error("Please select the card database first.")
+            continue
+        try:
+            from src.visual_tools_ui import create_asset_browser, create_theme_editor
+            if event == "-ROLE_BROWSER-":
+                create_asset_browser(database_file_path)
+            else:
+                create_theme_editor(database_file_path)
+        except Exception as error:
+            sg.popup_error(f"Could not open visual editor: {error}")
+
     if event == "-CROP_EDITOR-":
         from src.crop_editor import create_crop_editor_window
 
@@ -779,68 +726,60 @@ while True:
         finally:
             swap_window.close()
 
-    # Handle database and save directory selection
+    # Handle database selection independently from the output folder.
     if event == "-SELECT_DATABASE-":
-        database_file_path = open_file_dialog(
+        selected_database_path = open_file_dialog(
             "Select your Raw_CardDatabase mtga file in Raw Folder",
             "mtga files",
             "*.mtga",
         )
-        try:
-            # Initialize database connection and load cards
-            database_cursor, database_connection, database_file_path = (
-                database_manager.create_database_connection(database_file_path)
-            )
-
-            all_cards_formatted = list(
-                map(
-                    format_card_display,
-                    sorted(
-                        database_cursor.execute(
-                            get_cards_query
-                        ).fetchall()
-                    ),
+        if selected_database_path:
+            try:
+                new_cursor, new_connection, selected_database_path = (
+                    database_manager.create_database_connection(selected_database_path)
                 )
-            )
-            displayed_cards = all_cards_formatted
-        except (
-            database_manager.sqlite3.OperationalError,
-            database_manager.sqlite3.DatabaseError,
-            TypeError,
-        ):
-            sg.popup_error(
-                "Missing or incorrect database selected", auto_close_duration=3
-            )
+                new_cards = list(
+                    map(
+                        format_card_display,
+                        sorted(new_cursor.execute(get_cards_query).fetchall()),
+                    )
+                )
+            except (
+                database_manager.sqlite3.OperationalError,
+                database_manager.sqlite3.DatabaseError,
+                TypeError,
+            ):
+                sg.popup_error("Missing or incorrect database selected", auto_close_duration=3)
+            else:
+                if database_connection is not None:
+                    database_connection.close()
+                database_cursor, database_connection = new_cursor, new_connection
+                database_file_path = selected_database_path
+                all_cards_formatted = displayed_cards = new_cards
+                configure_unity_version(database_file_path)
+                main_window["-CARD_LIST-"].update(displayed_cards)
+                main_window["-CHANGE_ASSETS-"].update(
+                    "Browse texture gallery", disabled=False
+                )
+                main_window["-SET_SWAPPER-"].update(disabled=False)
+                main_window["DATABASE_DISPLAY"].update(database_file_path)
+                asset_bundle_directory = (
+                    os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
+                )
+                with open(user_config_file_path, "w") as config_file:
+                    user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
+                    config_file.write(sg.json.dumps(user_config, indent=4))
 
-        # Select image save directory
-        image_save_directory = open_directory_dialog(
-            "Select a folder to save images to"
-        )
-
-        # Save configuration to file
-        if image_save_directory and database_file_path:
+    if event == "-SELECT_OUTPUT_FOLDER-":
+        selected_output_directory = open_directory_dialog("Select a folder to save images to")
+        if selected_output_directory:
+            image_save_directory = selected_output_directory
+            main_window["IMAGE_SAVE_DISPLAY"].update(
+                image_save_directory
+            )
             with open(user_config_file_path, "w") as config_file:
                 user_config["SavePath"] = str(Path(image_save_directory).as_posix())
-                user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
                 config_file.write(sg.json.dumps(user_config, indent=4))
-
-            # Configure Unity version and update GUI
-            configure_unity_version(database_file_path)
-            main_window["-CARD_LIST-"].update(displayed_cards)
-            main_window["-CHANGE_ASSETS-"].update(
-                "Change Sleeves, Avatars, etc.", disabled=False
-            )
-            main_window["-SET_SWAPPER-"].update(disabled=False)
-            main_window["DATABASE_DISPLAY"].update(
-                "Database: " + (database_file_path if database_file_path else "None")
-            )
-            main_window["IMAGE_SAVE_DISPLAY"].update(
-                "Image Save Location: "
-                + (image_save_directory if image_save_directory else "None")
-            )
-            asset_bundle_directory = (
-                os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
-            )
 
     if event == "-SEARCH_TOKENS-":
         if database_cursor is not None:
@@ -911,7 +850,7 @@ while True:
                         ],
                         [
                             sg.Image(
-                                source=display_texture_bytes,
+                                source=preview_bytes(display_texture_bytes, (620, 470)),
                                 key="-ASSET_IMAGE-",
                             )
                         ],
@@ -965,7 +904,7 @@ while True:
 
                                 # Update display with new image
                                 token_editor_window["-ASSET_IMAGE-"].update(
-                                    source=display_texture_bytes
+                                    source=preview_bytes(display_texture_bytes, (620, 470))
                                 )
                                 token_card.image = texture_data.image
                                 texture_width, texture_height = (
@@ -996,7 +935,7 @@ while True:
                                 display_image
                             )
                             token_editor_window["-ASSET_IMAGE-"].update(
-                                source=display_texture_bytes
+                                source=preview_bytes(display_texture_bytes, (620, 470))
                             )
                             token_card.image = upscaled_image
                             texture_width, texture_height = upscaled_image.size
@@ -1018,6 +957,8 @@ while True:
         main_window["-USE_DECKLIST-"].update(value=True)
         event = "-USE_DECKLIST-"
         values["-USE_DECKLIST-"] = True
+        workspace.clear_target()
+        workspace.refresh(values)
 
     if event == "-EXPORT_ALL_ARTS-":
         artid_list = [
@@ -1037,7 +978,8 @@ while True:
                 if image_data_list:
                     image_bytes = convert_texture_to_bytes(image_data_list[0])
                     image = Image.open(io.BytesIO(image_bytes))
-                    save_path = os.path.join(export_directory, f"{name}.png")
+                    safe_name = name.replace("/", "_").replace("\\", "_")
+                    save_path = os.path.join(export_directory, f"{safe_name}.png")
                     image.save(save_path)
                 else:
                     print(f"No texture found for {name} ({artid})")
@@ -1407,70 +1349,13 @@ while True:
                                         )
 
                                         # Create individual asset editor window
-                                        asset_editor_layout = [
-                                            [
-                                                sg.Button(
-                                                    "Change image",
-                                                    key="-CHANGE_ASSET_IMAGE-",
-                                                ),
-                                                (
-                                                    sg.Button(
-                                                        "Previous",
-                                                        key="-ASSET_PREVIOUS-",
-                                                    )
-                                                    if len(texture_data_list) > 1
-                                                    else sg.Text("")
-                                                ),
-                                                (
-                                                    sg.Button(
-                                                        "Next", key="-ASSET_NEXT-"
-                                                    )
-                                                    if len(texture_data_list) > 1
-                                                    else sg.Text("")
-                                                ),
-                                                sg.Button(
-                                                    "Return to Gallery",
-                                                    key="-RETURN_GALLERY-",
-                                                ),
-                                                sg.Button(
-                                                    "Set aspect ratio to",
-                                                    key="-SET_ASPECT_RATIO-",
-                                                ),
-                                                sg.Input(
-                                                    "Width",
-                                                    key="-ASPECT_WIDTH-",
-                                                    size=(5, 1),
-                                                ),
-                                                sg.Input(
-                                                    "Height",
-                                                    key="-ASPECT_HEIGHT-",
-                                                    size=(5, 1),
-                                                ),
-                                                sg.Checkbox(
-                                                    "Remove Alpha",
-                                                    key="-ASSET_REMOVE_ALPHA-",
-                                                    default=True,
-                                                    enable_events=True,
-                                                ),
-                                                sg.Button("Save", key="-SAVE_ASSET-"),
-                                            ],
-                                            [
-                                                sg.Image(
-                                                    source=display_texture_bytes,
-                                                    key="-ASSET_IMAGE-",
-                                                )
-                                            ],
-                                            [
-                                                sg.Text(
-                                                    f"Texture {texture_index + 1} of {len(texture_data_list)} in {selected_asset_file}",
-                                                    key="-ASSET_INFO-",
-                                                )
-                                            ],
-                                        ]
+                                        texture_editor_layout = asset_editor_layout(
+                                            display_texture_bytes, len(texture_data_list) > 1,
+                                            f"Texture {texture_index + 1} of {len(texture_data_list)} in {selected_asset_file}")
 
                                         asset_editor_window = sg.Window(
                                             f"Asset Editor - {selected_asset_file}",
-                                            asset_editor_layout,
+                                            texture_editor_layout,
                                             modal=True,
                                             grab_anywhere=True,
                                             relative_location=(0, 0),
@@ -1523,7 +1408,7 @@ while True:
                                                 )
                                                 asset_editor_window[
                                                     "-ASSET_IMAGE-"
-                                                ].update(source=display_texture_bytes)
+                                                ].update(source=preview_bytes(display_texture_bytes, (620, 470)))
                                                 asset_editor_window[
                                                     "-ASSET_INFO-"
                                                 ].update(
@@ -1600,7 +1485,7 @@ while True:
                                                     asset_editor_window[
                                                         "-ASSET_IMAGE-"
                                                     ].update(
-                                                        source=display_texture_bytes
+                                                        source=preview_bytes(display_texture_bytes, (620, 470))
                                                     )
 
                                                     # Update gallery thumbnail
@@ -1661,7 +1546,7 @@ while True:
                                                     asset_editor_window[
                                                         "-ASSET_IMAGE-"
                                                     ].update(
-                                                        source=display_texture_bytes
+                                                        source=preview_bytes(display_texture_bytes, (620, 470))
                                                     )
                                                 except ValueError:
                                                     sg.popup_error(
@@ -1700,49 +1585,11 @@ while True:
                 auto_close_duration=3,
             )
 
-    # Handle decklist filtering toggle
-    if event == "-USE_DECKLIST-":
-        is_using_decklist_filter = values["-USE_DECKLIST-"]
-        if is_using_decklist_filter:
-            if cards_from_imported_deck is None:
-                sg.popup_error(
-                    "Load a decklist first or disable Use Decklist",
-                    auto_close_duration=3,
-                )
-                main_window["-USE_DECKLIST-"].update(value=False)
-                continue
-
-            # Filter cards based on imported decklist
-            filtered_cards_from_deck = [
-                card
-                for card in all_cards_formatted
-                if card[:15].strip() in cards_from_imported_deck
-            ]
-            displayed_cards = filtered_cards_from_deck
-            if filtered_cards_from_deck:
-                main_window["-CARD_LIST-"].update(filtered_cards_from_deck)
-            filtered_search_results = filtered_cards_from_deck
-
-        else:
-            main_window["-CARD_LIST-"].update(all_cards_formatted)
-            displayed_cards = all_cards_formatted
-
-    # Handle search input for filtering cards
-    if values and values["-SEARCH_INPUT-"] != "":
-        if values["-SEARCH_INPUT-"] != current_search_input:
-            current_search_input = values["-SEARCH_INPUT-"].replace(" ", "").lower()
-            search_query = current_search_input
-
-            # Filter cards based on search query
-            filtered_search_results = [
-                card for card in displayed_cards if search_query in card.lower()
-            ]
-            main_window["-CARD_LIST-"].update(filtered_search_results)
-    else:
-        # Reset to full card list when search is cleared
-        if current_search_input != "":
-            main_window["-CARD_LIST-"].update(displayed_cards)
-            current_search_input = ""
+    if event in ("-SELECT_DATABASE-", "-LOAD_DECKLIST-"):
+        workspace.clear_target()
+        workspace.refresh(values)
+    if event == "-SELECT_OUTPUT_FOLDER-":
+        workspace.status("Image export folder updated.")
 
     # Handle card art swapping functionality
     if event == "-SWAP_ARTS-":
@@ -1887,7 +1734,7 @@ while True:
                 break
 
     # Handle card selection from the list
-    if event == "-CARD_LIST-" and values["-CARD_LIST-"]:
+    if event == "-OPEN_CARD_EDITOR-" and values["-CARD_LIST-"]:
         # Create card object from selected list item
 
         selected_card_data = MTGACard(
@@ -1987,72 +1834,14 @@ while True:
             selected_card_data.image = image_data_list[0]
             if card_textures is not None:
                 # Create card editor window layout
-                card_editor_layout = [
-                    [
-                        [
-                            sg.Button("Change image", key="-CHANGE_IMAGE-"),
-                            (
-                                sg.Button("Previous in bundle", key="-PREVIOUS-")
-                                if len(card_textures) > 1
-                                else sg.Text("")
-                            ),
-                            (
-                                sg.Button("Next in bundle", key="-NEXT-")
-                                if len(card_textures) > 1
-                                else sg.Text("")
-                            ),
-                            sg.Button("Set to Swap 1", key="-SET_SWAP_1-"),
-                            sg.Button("Set to Swap 2", key="-SET_SWAP_2-"),
-                            sg.Button("Adjust style tags", key="-ADJUST_STYLE_TAGS-"),
-                            sg.Combo(
-                                values=alternate_display,
-                                default_value=(
-                                    alternate_display[0] if alternate_display else ""
-                                ),
-                                key="-SEARCH_ALTERNATES-",
-                                readonly=True,
-                                enable_events=True,
-                            ),
-                        ],
-                        [
-                            sg.Button("Edit details", key="-EDIT_DETAILS-"),
-                            sg.Button("Set aspect ratio to", key="-SET_ASPECT_RATIO-"),
-                            sg.Input(
-                                "3" if selected_card_data.art_type == "1" else "11",
-                                key="-ASPECT_WIDTH-",
-                                size=(3, 1),
-                            ),
-                            sg.Input(
-                                "4" if selected_card_data.art_type == "1" else "8",
-                                key="-ASPECT_HEIGHT-",
-                                size=(3, 1),
-                            ),
-                            sg.Checkbox(
-                                "Remove Alpha (recommended)",
-                                key="-REMOVE_ALPHA-",
-                                default=True,
-                                enable_events=True,
-                            ),
-                            sg.Button("Save", key="-SAVE_IMAGE-"),
-                            sg.Button(
-                                "Upscale",
-                                key="-UPSCALE_IMAGE-",
-                                disabled=not is_upscaling_available,
-                            ),
-                        ],
-                    ],
-                    [
-                        sg.Image(
-                            source=display_texture_bytes,
-                            key="-CARD_IMAGE-",
-                        )
-                    ],
-                ]
+                editor_layout = card_editor_layout(
+                    display_texture_bytes, len(card_textures) > 1,
+                    alternate_display, selected_card_data.art_type, is_upscaling_available)
 
                 # Create card editor window
                 card_editor_window = sg.Window(
                     "Showing: " + selected_card_data.name + " Art",
-                    card_editor_layout,
+                    editor_layout,
                     modal=True,
                     grab_anywhere=True,
                     relative_location=(0, 0),
@@ -2077,7 +1866,7 @@ while True:
                             image_data_list[texture_index]
                         )
                         card_editor_window["-CARD_IMAGE-"].update(
-                            source=display_texture_bytes
+                            source=preview_bytes(display_texture_bytes, (620, 470))
                         )
                         selected_card_data.image = image_data_list[texture_index]
 
@@ -2304,7 +2093,7 @@ while True:
                             sg.popup_error("Failed to load card image!")
                         selected_card_data.image = image_data_list[0]
                         card_editor_window["-CARD_IMAGE-"].update(
-                            source=convert_texture_to_bytes(selected_card_data.image)
+                            source=preview_bytes(selected_card_data.image, (620, 470))
                         )
 
                     # Handle image replacement
@@ -2360,7 +2149,7 @@ while True:
 
                             # Update display with new image
                             card_editor_window["-CARD_IMAGE-"].update(
-                                source=display_texture_bytes
+                                source=preview_bytes(display_texture_bytes, (620, 470))
                             )
                             selected_card_data.image = texture_data.image
                             sg.popup_auto_close(
@@ -2379,7 +2168,7 @@ while True:
                             processed_image
                         )
                         card_editor_window["-CARD_IMAGE-"].update(
-                            source=display_texture_bytes
+                            source=preview_bytes(display_texture_bytes, (620, 470))
                         )
                         selected_card_data.image = processed_image
 
@@ -2410,7 +2199,7 @@ while True:
                         display_image = resize_image_to_screen(upscaled_image)
                         display_texture_bytes = convert_texture_to_bytes(display_image)
                         card_editor_window["-CARD_IMAGE-"].update(
-                            source=display_texture_bytes
+                            source=preview_bytes(display_texture_bytes, (620, 470))
                         )
                         selected_card_data.image = upscaled_image
 
@@ -2433,7 +2222,7 @@ while True:
                                 resized_image
                             )
                             card_editor_window["-CARD_IMAGE-"].update(
-                                source=display_texture_bytes
+                                source=preview_bytes(display_texture_bytes, (620, 470))
                             )
                             texture_width, texture_height = new_width, new_height
                             selected_card_data.image = resized_image
@@ -2451,6 +2240,8 @@ while True:
                         second_card_to_swap = selected_card_data
 
                 card_editor_window.close()
+                workspace.clear_target()
+                main_window.write_event_value("-CARD_LIST-", [values["-CARD_LIST-"][0]])
 
             else:
                 sg.popup_error("Invalid texture file", auto_close_duration=1)
