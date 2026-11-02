@@ -93,7 +93,7 @@ def load_art_crop_database(
     crop_data = []
 
     try:
-        conn = sqlite3.connect(crop_db_path)
+        conn = sqlite3.connect(Path(crop_db_path).resolve().as_uri() + '?mode=rw', uri=True)
         cursor = conn.cursor()
 
         # Query all rows from the Crops table
@@ -392,21 +392,14 @@ def create_crop_editor_window(
         user_config_directory = Path.home() / ".mtga_swapper"
         changes_file_path = str(user_config_directory / "changes.json")
 
-    # Determine the crop database path
-    db_dir = os.path.dirname(database_file_path)
-    crop_db_path = None
-
-    # Look for Raw_ArtCropDatabase file in the same directory
-    for file in os.listdir(db_dir):
-        if file.startswith("Raw_ArtCropDatabase") and file.endswith(".mtga"):
-            crop_db_path = os.path.join(db_dir, file)
-            break
-
-    if not crop_db_path or not os.path.exists(crop_db_path):
-        sg.popup_error(
-            "Could not find Raw_ArtCropDatabase file in the same directory as Raw_CardDatabase",
-            title="File Not Found",
-        )
+    # Match the crop file to the selected card database's manifest. Arena may
+    # also have pre-downloaded Future crop databases in this same directory.
+    from src.database_locator import select_crop_database, DatabaseSelectionError, require_current_database
+    try:
+        crop_db_path = str(select_crop_database(database_file_path))
+        card_database_identity = Path(database_file_path).stat().st_ino
+    except (DatabaseSelectionError, OSError) as error:
+        sg.popup_error(str(error), title="Crop database unavailable")
         return
 
     # Load the crop database
@@ -542,6 +535,14 @@ def create_crop_editor_window(
 
         if event in (sg.WIN_CLOSED, "-CLOSE-"):
             break
+
+        if event in ('-SAVE_EDIT-', '-DUPLICATE_PATH-', '-DELETE_ROW-', '-SAVE_DB-', '-MULTI_PREVIEW-'):
+            try:
+                require_current_database(database_file_path, card_database_identity)
+            except (DatabaseSelectionError, OSError) as error:
+                crop_conn.rollback()
+                sg.popup_error(str(error), title='Arena database changed')
+                break
 
         if event == "-SEARCH_CARD-":
             search_term = values["-SEARCH_CARD-"].strip()
@@ -874,6 +875,7 @@ def create_crop_editor_window(
                 == "Yes"
             ):
                 try:
+                    require_current_database(database_file_path, card_database_identity)
                     crop_conn.commit()
                     if preview_keys:
                         try:

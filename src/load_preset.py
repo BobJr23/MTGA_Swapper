@@ -8,7 +8,7 @@ import shutil
 from src.bundle_crc import restore_bundle_crc
 
 
-def apply_crop_changes(crop_changes: dict, asset_bundle_path: str) -> None:
+def apply_crop_changes(crop_changes: dict, asset_bundle_path: str, card_database_path=None) -> None:
     """
     Apply crop changes from the changes.json file to the Art Crop Database.
 
@@ -17,22 +17,14 @@ def apply_crop_changes(crop_changes: dict, asset_bundle_path: str) -> None:
         asset_bundle_path: Path to the MTGA asset bundle directory
     """
     try:
-        # Find the Raw_ArtCropDatabase file
-        crop_db_path = None
-        raw_path = Path(asset_bundle_path).parent / "Raw"
-        for file in os.listdir(raw_path):
-            if file.startswith("Raw_ArtCropDatabase") and file.endswith(".mtga"):
-                crop_db_path = os.path.join(raw_path, file)
-                break
-
-        if not crop_db_path or not os.path.exists(crop_db_path):
-            print(
-                "Warning: Could not find Raw_ArtCropDatabase file, skipping crop changes"
-            )
-            return
+        from src.database_locator import select_card_database, select_crop_database
+        if card_database_path is None:
+            raw_path = Path(asset_bundle_path).parent / "Raw"
+            card_database_path = select_card_database(raw_path).path
+        crop_db_path = select_crop_database(card_database_path)
 
         # Connect to the crop database
-        conn = sqlite3.connect(crop_db_path)
+        conn = sqlite3.connect(Path(crop_db_path).resolve().as_uri() + '?mode=rw', uri=True)
         cursor = conn.cursor()
 
         # Apply each crop change
@@ -178,7 +170,9 @@ def change_grp_id(
         crop_changes = changes_data.pop("crops", None)
         if crop_changes and asset_bundle_path:
             print(f"Found {len(crop_changes)} ArtId(s) with crop changes")
-            apply_crop_changes(crop_changes, asset_bundle_path)
+            main_database = next((row[2] for row in connection.execute("PRAGMA database_list")
+                                  if row[1] == "main"), None)
+            apply_crop_changes(crop_changes, asset_bundle_path, main_database or None)
         elif crop_changes:
             print(
                 "Warning: Crop changes found but asset_bundle_path not provided, skipping crop changes"
@@ -259,7 +253,7 @@ def save_loc_id_info(
 
 
 # Credit to Bassiuz for the improved MTGA path detection logic
-def get_data_path(mtga_path: Path) -> Path:
+def get_data_path(mtga_path: Path, quiet=False) -> Path:
     """Gets the correct MTGA_Data path for Windows or macOS."""
     system = platform.system()
     if system == "Darwin" and str(mtga_path).endswith(".app"):
@@ -268,14 +262,15 @@ def get_data_path(mtga_path: Path) -> Path:
     # For Windows, specifically check if a nested MTGA_Data folder exists
     nested_data_path = mtga_path / "MTGA_Data"
     if system == "Windows" and nested_data_path.exists():
-        print(f"   -> Found nested MTGA_Data folder at: {nested_data_path}")
+        if not quiet:
+            print(f"   -> Found nested MTGA_Data folder at: {nested_data_path}")
         return nested_data_path
 
     # Fallback for other structures where Downloads is in the main folder
     return mtga_path
 
 
-def find_mtga_db_path():
+def find_mtga_db_path(preferred_path=None, quiet=False):
     """Automatically detects the MTG Arena installation path for Windows and macOS."""
     system = platform.system()
     home = Path.home()
@@ -301,24 +296,37 @@ def find_mtga_db_path():
             Path("/Applications/Epic Games/MagicTheGathering/MTGA.app"),
         ]
     else:
-        print(f"Unsupported OS: {system}. Please manually locate the MTGA path.")
-        return None
+        paths_to_check = []
 
-    print("🔍 Searching for MTG Arena installation...")
+    from src.database_locator import select_card_database, active_data_root
+    raw_directories = []
+    active_root = active_data_root()
+    if active_root and (active_root / 'Downloads/Raw').is_dir():
+        raw_directories.append(active_root / 'Downloads/Raw')
+    if preferred_path:
+        preferred_raw = Path(preferred_path).expanduser().resolve().parent
+        if preferred_raw.is_dir() and preferred_raw not in raw_directories:
+            raw_directories.append(preferred_raw)
     for path in paths_to_check:
         if path.exists():
             # Use our new, smarter helper to find the actual data root
-            data_root = get_data_path(path)
+            data_root = get_data_path(path, quiet=quiet)
 
-            asset_bundle_path = data_root / "Downloads/Raw"
-            if asset_bundle_path.exists():
-                # We return the main installation folder, not the data subfolder
-                for file in asset_bundle_path.iterdir():
-                    if file.name.startswith("Raw_CardDatabase"):
-                        return str(file)
+            raw = data_root / "Downloads/Raw"
+            if raw.is_dir() and raw not in raw_directories:
+                raw_directories.append(raw)
 
-    print("❌ Could not automatically find MTG Arena installation.")
+    for raw in raw_directories:
+        if not any(raw.glob("Raw_CardDatabase*.mtga")) and not preferred_path:
+            continue
+        selection = select_card_database(raw, preferred_path=preferred_path)
+        if not quiet:
+            print(f"Selected card database: {selection.path.name} ({selection.reason})")
+        return str(selection.path)
+    if not quiet:
+        print("Could not automatically find MTG Arena installation.")
     return None
+
 
 
 # if __name__ == "__main__":

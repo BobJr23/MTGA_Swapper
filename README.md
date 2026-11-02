@@ -144,7 +144,17 @@ If not,
 ## 🖼️ How to Use
 
 ### 1. Select your MTGA database file  
-Locate your Arena install folder and choose the appropriate `Raw_CardDatabase... .mtga` database file.
+Swapper automatically identifies the card database from the **General** manifest used by Arena.
+Arena may also download **Future** databases ahead of an update; those are excluded from automatic selection.
+There is no need to delete the newly downloaded files.
+
+If you use a custom installation, Swapper checks the installation named in Arena's log and your saved database location.
+When active-manifest information is unavailable, it remembers a compatible database selected in Settings.
+If several files exist and the active database cannot be identified, launch Arena and let its downloads finish, then retry.
+Swapper reports the problem rather than guessing from filenames or modification dates.
+
+The main window refreshes its connection when Arena activates a different database. Re-select the asset after that refresh.
+Crop editing uses the crop database from the same manifest as the selected card database.
 
 **(Default installation path is ```C:\Program Files (x86)\Wizards of the Coast```)**
 

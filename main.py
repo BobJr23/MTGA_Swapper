@@ -13,6 +13,7 @@ from src.sql_editor import (
 import sys
 import os
 import shutil
+from src.database_locator import DatabaseSelectionError, require_current_database
 
 def get_resource_path(relative_path: str) -> str:
     """
@@ -160,7 +161,7 @@ all_cards_formatted = ["Select a database first"]
 displayed_cards = ["Select a database first"]
 image_save_directory = None
 is_alternate = False
-database_file_path = find_mtga_db_path()
+database_selection_error = None
 lands_set = ("island", "forest", "mountain", "plains", "wastes", "swamp", "snowcoveredforest", "snowcoveredisland", "snowcoveredmountain", "snowcoveredplains", "snowcoveredswamp")
 # Load configuration from file or initialize with defaults
 if user_config_file_path.exists():
@@ -171,16 +172,17 @@ if user_config_file_path.exists():
         except sg.json.JSONDecodeError:
             sg.popup_error("Error loading config file", auto_close_duration=3)
             user_config = {"SavePath": "", "DatabasePath": ""}
-        image_save_directory = (
-            user_config["SavePath"] if user_config["SavePath"] else None
-        )
+        image_save_directory = user_config.get("SavePath") or None
 
-        # Validate and load database if path exists
-        if database_file_path or user_config["DatabasePath"] != "" and os.path.exists(
-            user_config["DatabasePath"]
-        ):
-            if not database_file_path:
-                database_file_path = user_config["DatabasePath"]
+        # Arena keeps current and Future databases together. Resolve the active
+        # General manifest before opening a connection; use the saved choice only
+        # when authoritative manifest information is unavailable.
+        try:
+            database_file_path = find_mtga_db_path(user_config.get("DatabasePath"))
+        except DatabaseSelectionError as error:
+            database_selection_error = str(error)
+            database_file_path = None
+        if database_file_path:
             try:
                 # Initialize database connection
                 database_cursor, database_connection, database_file_path = (
@@ -217,9 +219,9 @@ if user_config_file_path.exists():
                     os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
                 )
                 configure_unity_version(database_file_path)
-            if image_save_directory and database_file_path:
+            if database_file_path:
                 with open(user_config_file_path, "w") as config_file:
-                    user_config["SavePath"] = str(Path(image_save_directory).as_posix())
+                    user_config["SavePath"] = str(Path(image_save_directory).as_posix()) if image_save_directory else ""
                     user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
                     config_file.write(sg.json.dumps(user_config, indent=4))
         else:
@@ -303,6 +305,8 @@ def import_share_pack(pack_path: str) -> None:
             keep_on_top=False,
         )
 
+        if not editor_database_is_current():
+            return
         if pack.changes_path:
             with open(pack.changes_path, "r") as pack_changes_file:
                 validate_changes_data(json.load(pack_changes_file), cards_table_columns())
@@ -431,6 +435,20 @@ def apply_workspace_asset(target, image):
     save_image_to_file(texture.image,
                        str(Path(image_save_directory) / f"{record.bundle}-{target['reader'].path_id}_backup{int(time())}.png"),
                        False)
+    if target.get('sprite_region') is not None:
+        from src.theme_bundle import save_edited_bundle
+        replacement = target['sprite_region'].replace(image)
+        for atlas_texture, atlas_image in replacement.updates:
+            # Lossless storage preserves neighboring sprites when the atlas is
+            # serialized, rather than recompressing their pixels a second time.
+            atlas_texture.set_image(atlas_image, target_format=4,
+                                    mipmap_count=max(1, getattr(atlas_texture, 'm_MipCount', 1) or 1))
+            atlas_texture.save()
+        # Serialize color and optional alpha together in one atomic CRC-checked
+        # save. This also retains the original bundle beside the edited file.
+        save_edited_bundle(target['environment'], record.file, target['bundle_original'])
+        shutil.copy(record.file, backup_directory / ('MOD_' + record.file.name))
+        return
     with tempfile.TemporaryDirectory(prefix='mtga_replacement_') as temporary:
         replacement_file = Path(temporary) / 'replacement.png'
         image.save(replacement_file, format='PNG')
@@ -443,11 +461,112 @@ workspace = Workspace(main_window, workspace_context, load_workspace_card,
                       upscale_card_image if is_upscaling_available else None,
                       apply_asset=apply_workspace_asset)
 
+if database_selection_error:
+    workspace.status(database_selection_error, error=True)
+elif database_file_path:
+    workspace.status('Connected to Arena database: ' + Path(database_file_path).name)
+
+
+def activate_database(path):
+    """Replace the session connection only after the new database has been read."""
+    global database_cursor, database_connection, database_file_path
+    global all_cards_formatted, displayed_cards, asset_bundle_directory
+    global first_card_to_swap, second_card_to_swap, database_selection_error
+    new_cursor, new_connection, path = database_manager.create_database_connection(str(path))
+    try:
+        cards = list(map(format_card_display, sorted(new_cursor.execute(get_cards_query).fetchall())))
+    except Exception:
+        new_connection.close()
+        raise
+    if database_connection is not None:
+        database_connection.close()
+    database_cursor, database_connection, database_file_path = new_cursor, new_connection, path
+    all_cards_formatted = displayed_cards = cards
+    asset_bundle_directory = str(Path(path).parent.parent / 'AssetBundle')
+    first_card_to_swap = second_card_to_swap = None
+    database_selection_error = None
+    configure_unity_version(path)
+    main_window['DATABASE_DISPLAY'].update(path)
+    main_window['-CHANGE_ASSETS-'].update('Browse texture gallery', disabled=False)
+    main_window['-SET_SWAPPER-'].update(disabled=False)
+    user_config['DatabasePath'] = str(Path(path).as_posix())
+    with open(user_config_file_path, 'w') as config_file:
+        json.dump(user_config, config_file, indent=4)
+    workspace.clear_target()
+
+
+last_database_check = 0
+database_identity = (Path(database_file_path).stat().st_ino if database_file_path else None)
+
+
+def editor_database_is_current():
+    global last_database_check, database_selection_error
+    try:
+        require_current_database(database_file_path, database_identity)
+        return True
+    except (DatabaseSelectionError, OSError) as error:
+        last_database_check = 0
+        database_selection_error = str(error)
+        sg.popup_error(str(error), title='Arena database changed')
+        return False
+
+
+def refresh_current_database(values):
+    """Follow General-manifest changes between operations, never inside an editor."""
+    global last_database_check, database_identity, database_selection_error
+    if time() - last_database_check < 5:
+        return True
+    last_database_check = time()
+    try:
+        selected = find_mtga_db_path(database_file_path or user_config.get('DatabasePath'), quiet=True)
+        if selected is None:
+            if database_file_path:
+                raise DatabaseSelectionError('The active Arena database is no longer available. '
+                                             'Let Arena finish downloading its assets, then try again.')
+            return True
+        identity = Path(selected).stat().st_ino
+        if (database_file_path and Path(selected) == Path(database_file_path)
+                and database_identity == identity):
+            database_selection_error = None
+            return True
+        activate_database(selected)
+        database_identity = identity
+        workspace.refresh(values)
+        workspace.status('Arena database refreshed: ' + Path(selected).name + '. Re-select your asset to continue.')
+        # The event values came from the old library; discard that operation.
+        return False
+    except (DatabaseSelectionError, OSError, database_manager.sqlite3.Error, TypeError) as error:
+        message = str(error)
+        if message != database_selection_error:
+            workspace.status(message, error=True)
+            workspace.clear_target()
+        database_selection_error = message
+        return True
+
 # Main GUI Event Loop
 while True:
-    event, values = main_window.read()
+    event, values = main_window.read(timeout=5000)
     if event in (sg.WIN_CLOSED, "Exit"):
         break
+
+    if event in ('-LOAD_PRESET-', '-IMPORT_SHARE_PACK-', '-UNLOCK_PARALLAX-',
+                 '-LOAD_OLD_CHANGES-', '-SWAP_ARTS-', '-OPEN_CARD_EDITOR-',
+                 '-SET_SWAPPER-', '-CROP_EDITOR-', '-APPLY_REPLACEMENT-',
+                 '-CARD_LIST-', '-SEARCH_TOKENS-', '-CHANGE_ASSETS-',
+                 '-RECOVER_BACKUP_ART-', '-EXPORT_ALL_ARTS-'):
+        # Revalidate immediately before operations, in addition to idle polling.
+        last_database_check = 0
+
+    if event != '-SELECT_DATABASE-' and not refresh_current_database(values):
+        continue
+    if event == sg.TIMEOUT_EVENT:
+        continue
+    if database_selection_error and event not in (
+        '-SELECT_DATABASE-', '-SELECT_OUTPUT_FOLDER-', '-SETTINGS-', '-MAINTENANCE-',
+        '-BACK_LIBRARY-', '-BACK_MAINTENANCE-', '-JOIN_DISCORD-', '-APP_THEME-', '-TOGGLE_LOG-'
+    ) and not (isinstance(event, str) and event.startswith('-NAV-')):
+        workspace.status(database_selection_error, error=True)
+        continue
 
     if workspace.handle(event, values):
         continue
@@ -483,6 +602,8 @@ while True:
             ],
         )
         if not preset_path:
+            continue
+        if not editor_database_is_current():
             continue
         if preset_path.lower().endswith(".zip"):
             import_share_pack(preset_path)
@@ -636,6 +757,9 @@ while True:
                 if swap_event in (sg.WIN_CLOSED, "-CLOSE-"):
                     break
 
+                if not editor_database_is_current():
+                    break
+
                 if swap_event == "-GENERATE_SWAPS-":
                     source_set = swap_values["-SOURCE_SET-"].strip().lower()
                     target_set = swap_values["-TARGET_SET-"].strip().lower()
@@ -682,6 +806,8 @@ while True:
                     )
 
                     if confirm == "Yes":
+                        if not editor_database_is_current():
+                            break
                         asset_bundle_dir = (
                             Path(database_file_path).parent.parent / "AssetBundle"
                         )
@@ -735,40 +861,12 @@ while True:
         )
         if selected_database_path:
             try:
-                new_cursor, new_connection, selected_database_path = (
-                    database_manager.create_database_connection(selected_database_path)
-                )
-                new_cards = list(
-                    map(
-                        format_card_display,
-                        sorted(new_cursor.execute(get_cards_query).fetchall()),
-                    )
-                )
-            except (
-                database_manager.sqlite3.OperationalError,
-                database_manager.sqlite3.DatabaseError,
-                TypeError,
-            ):
-                sg.popup_error("Missing or incorrect database selected", auto_close_duration=3)
-            else:
-                if database_connection is not None:
-                    database_connection.close()
-                database_cursor, database_connection = new_cursor, new_connection
-                database_file_path = selected_database_path
-                all_cards_formatted = displayed_cards = new_cards
-                configure_unity_version(database_file_path)
-                main_window["-CARD_LIST-"].update(displayed_cards)
-                main_window["-CHANGE_ASSETS-"].update(
-                    "Browse texture gallery", disabled=False
-                )
-                main_window["-SET_SWAPPER-"].update(disabled=False)
-                main_window["DATABASE_DISPLAY"].update(database_file_path)
-                asset_bundle_directory = (
-                    os.path.dirname(database_file_path)[0:-3] + "AssetBundle"
-                )
-                with open(user_config_file_path, "w") as config_file:
-                    user_config["DatabasePath"] = str(Path(database_file_path).as_posix())
-                    config_file.write(sg.json.dumps(user_config, indent=4))
+                activate_database(selected_database_path)
+                database_identity = Path(selected_database_path).stat().st_ino
+                workspace.refresh(values)
+                workspace.status('Database selected: ' + Path(selected_database_path).name)
+            except (database_manager.sqlite3.Error, OSError, TypeError) as error:
+                sg.popup_error('Could not open the selected card database: ' + str(error))
 
     if event == "-SELECT_OUTPUT_FOLDER-":
         selected_output_directory = open_directory_dialog("Select a folder to save images to")
@@ -868,11 +966,15 @@ while True:
                         event, values = token_editor_window.read()
                         if event == sg.WINDOW_CLOSED:
                             break
+                        if not editor_database_is_current():
+                            break
                         if event == "-CHANGE_ASSET_IMAGE-":
                             new_image_path = open_file_dialog(
                                 "Select your new image", "image files", "*.png"
                             )
                             if new_image_path not in ("", None):
+                                if not editor_database_is_current():
+                                    break
                                 # Create backup of original image
                                 backup_image_path = f"{os.path.join(image_save_directory, token_card.art_id)}-{int(time())}.png"
                                 save_image_to_file(
@@ -1049,6 +1151,8 @@ while True:
             not in lands_set
         ]
         if sg.popup_yes_no("Are you sure you want to unlock Parallax Style for " + str(len(grpid_list)) + " cards?", title="Confirm") == "Yes":
+            if not editor_database_is_current():
+                continue
             if database_manager.unlock_parallax_style(
                 grpid_list, database_cursor, database_connection, user_save_changes_path
             ):
@@ -1426,6 +1530,8 @@ while True:
                                                     "*.png",
                                                 )
                                                 if new_image_path not in ("", None):
+                                                    if not editor_database_is_current():
+                                                        break
                                                     # Create backup
                                                     backup_path = f"{os.path.join(image_save_directory, selected_asset_file)}-{texture_index}_backup{int(time())}.png"
                                                     save_image_to_file(
@@ -1697,6 +1803,9 @@ while True:
             if swap_event in (sg.WIN_CLOSED, "-CANCEL_SWAP-"):
                 swap_confirmation_window.close()
                 break
+            if not editor_database_is_current():
+                swap_confirmation_window.close()
+                break
             if (
                 swap_event == "-CONFIRM_SWAP-"
                 and first_card_to_swap
@@ -1855,6 +1964,8 @@ while True:
                         break
 
                     # Handle navigation between textures in the bundle
+                    if not editor_database_is_current():
+                        break
                     if editor_event in ("-PREVIOUS-", "-NEXT-"):
                         texture_index += 1 if editor_event == "-NEXT-" else -1
                         if texture_index >= len(card_textures):
@@ -1949,6 +2060,8 @@ while True:
                                 detail_event, detail_values = detail_window.read()
                                 if detail_event in (sg.WIN_CLOSED, "Exit"):
                                     break
+                                if not editor_database_is_current():
+                                    break
                                 if detail_event == "-SAVE_DETAILS-":
                                     new_values = {
                                         key.replace("-DETAIL-", "")[:-1]: detail_values[
@@ -2019,6 +2132,8 @@ while True:
                             ),
                         )
                         if new_tag:
+                            if not editor_database_is_current():
+                                break
                             database_cursor.execute(
                                 "UPDATE Cards SET Tags = ? WHERE GrpId = ?",
                                 (new_tag, selected_card_data.grp_id),
@@ -2102,6 +2217,8 @@ while True:
                             "Select your new image", "image files", "*.png"
                         )
                         if new_image_path not in ("", None):
+                            if not editor_database_is_current():
+                                break
                             # Create backup of original image
                             
                             backup_image_path = f"{os.path.join(image_save_directory, selected_card_data.name.replace('/', '-'))}-{str(texture_index)}-{texture_width}x{texture_height}_backup_noalpha{int(time())}.png"

@@ -220,7 +220,10 @@ def create_database_connection(
     Returns:
         Tuple of (cursor, connection, file_path)
     """
-    database_connection = sqlite3.connect(database_file_path)
+    # mode=rw refuses missing files instead of silently creating an empty SQLite
+    # database when Arena removes/replaces a download between detection and use.
+    from pathlib import Path
+    database_connection = sqlite3.connect(Path(database_file_path).resolve().as_uri() + '?mode=rw', uri=True)
     database_cursor = database_connection.cursor()
 
     return database_cursor, database_connection, database_file_path

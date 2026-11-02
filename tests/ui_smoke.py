@@ -85,6 +85,38 @@ def run():
             assert workspace.target['record'] is record
             assert workspace.original.size == (100, 140)
             assert file.read_bytes() == b'unchanged bundle'
+            # A Sprite avatar must offer the same import/Apply path as a texture.
+            from src.sprite_edit import SpriteRegion
+            avatar = AssetRecord('Assets/Avatars/custom.png', file.name, file, 'Avatar')
+            workspace.catalog = AssetCatalog(Path(folder), [avatar])
+            workspace.handle('-NAV-Avatars', values)
+            window['-WORKSPACE_ASSETS-'].update(set_to_index=0)
+            atlas_texture = SimpleNamespace(image=Image.new('RGBA', (32, 32), 'blue'))
+            sprite = SimpleNamespace(image=Image.new('RGBA', (12, 16), 'blue'))
+            sprite_reader = SimpleNamespace(type=SimpleNamespace(name='Sprite'), read=lambda: sprite)
+            region = SpriteRegion(atlas_texture, (2, 2, 14, 18), (12, 16))
+            imports = []
+            def apply_avatar(target, image):
+                result = region.replace(image)
+                imports.append(result.preview.size)
+                atlas_texture.image = result.updates[0][1]
+                sprite.image = result.preview
+            workspace.apply_asset = apply_avatar
+            replacement_file = Path(folder) / 'portrait.png'
+            Image.new('RGBA', (80, 40), 'red').save(replacement_file)
+            with patch('src.asset_catalog.load_object', return_value=(object(), sprite_reader)), \
+                 patch('src.sprite_edit.SpriteRegion.from_reader', return_value=region):
+                workspace.handle('-WORKSPACE_ASSETS-', dict(values, **{'-WORKSPACE_ASSETS-': ['custom [Avatar]']}))
+                assert workspace.target is not None
+                with patch.object(sg, 'popup_get_file', return_value=str(replacement_file)):
+                    workspace.handle('-CHOOSE_REPLACEMENT-', values)
+                assert not window['-APPLY_REPLACEMENT-'].Disabled
+                assert imports == []
+                workspace.handle('-APPLY_REPLACEMENT-', values)
+                assert imports == [(12, 16)]
+                assert workspace.original.size == (12, 16)
+                assert workspace.target['sprite_region'] is region
+            assert file.read_bytes() == b'unchanged bundle'
         for event, key in [('-SETTINGS-', '-SETTINGS_PANEL-'), ('-MAINTENANCE-', '-MAINTENANCE_PANEL-'),
                            ('-BACK_LIBRARY-', '-WORKSPACE-')]:
             workspace.handle(event, values)

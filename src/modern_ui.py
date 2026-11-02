@@ -694,13 +694,17 @@ class Workspace:
         self.paint_replacement()
 
     def paint_replacement(self):
+        image = self.replacement.image
+        sprite = self.target.get('sprite_region') if self.target else None
+        rendered = sprite.replace(image).preview if sprite and image is not None else image
         self.window["-REPLACEMENT_PREVIEW-"].update(
-            data=preview_bytes(self.replacement.image)
+            data=preview_bytes(rendered)
         )
         path = self.replacement.path
-        image = self.replacement.image
+        dimensions = (f"{rendered.width} × {rendered.height} (fitted to sprite)"
+                      if sprite and rendered else f"{image.width} × {image.height}" if image else '')
         self.window["-REPLACEMENT_NAME-"].update(
-            f"{path.name}\n{image.width} × {image.height}"
+            f"{path.name}\n{dimensions}"
             if path and image
             else "Choose an image to preview your replacement."
         )
@@ -872,13 +876,19 @@ class Workspace:
                     environment, reader = load_object(record)
                     self.original = object_image(reader)
                     name, metadata = Path(record.path).name, record.role
+                    sprite_region = None
+                    if reader.type.name == 'Sprite':
+                        from src.sprite_edit import SpriteRegion
+                        sprite_region = SpriteRegion.from_reader(reader, environment)
+                        metadata += ' — editable sprite'
                     self.target = {
                         "record": record,
                         "environment": environment,
                         "reader": reader,
                         "bundle_original": record.file.read_bytes(),
+                        "sprite_region": sprite_region,
                     }
-                    if reader.type.name != "Texture2D":
+                    if reader.type.name not in ("Texture2D", "Sprite"):
                         self.target = None
                         metadata += " — inspect atlas sprites in Browse by role"
                 self.window["-ORIGINAL_PREVIEW-"].update(
@@ -939,6 +949,7 @@ class Workspace:
                         "Select an asset and choose a replacement image first."
                     )
                 self.status("Replacing asset…", progress=35)
+                applied_image = self.replacement.image.copy()
                 if "card" in self.target:
                     self.apply_card(self.target, self.replacement.image)
                 else:
@@ -953,7 +964,13 @@ class Workspace:
                         record
                     )
                     self.target["bundle_original"] = record.file.read_bytes()
-                self.original = self.replacement.image.copy()
+                    if self.target.get('sprite_region'):
+                        from src.sprite_edit import SpriteRegion
+                        from src.asset_catalog import object_image
+                        self.target['sprite_region'] = SpriteRegion.from_reader(
+                            self.target['reader'], self.target['environment'])
+                        applied_image = object_image(self.target['reader'])
+                self.original = applied_image
                 self.window["-ORIGINAL_PREVIEW-"].update(
                     data=preview_bytes(self.original)
                 )
